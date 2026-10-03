@@ -1,4 +1,5 @@
 import { iterativeUnmaskCfg } from './algorithm'
+import { concatFloat32 } from './audio'
 import { createBackboneStep } from './backbone'
 import { ensureCached } from './cache'
 import { estimateTargetTokens } from './duration'
@@ -6,6 +7,7 @@ import { toFloat32 } from './dtype'
 import { filesForProfile, type Profile } from './manifest'
 import { createCachedSession, ort, releaseSession, type Device, type SessionHandle } from './ort'
 import { prepareInputs } from './prompt'
+import { chunkText } from './streaming'
 
 export interface SynthProgress {
   stage: 'download' | 'load' | 'tokenize' | 'generate' | 'decode' | 'done'
@@ -20,6 +22,7 @@ export interface SynthOptions {
   instruct?: string
   refText?: string
   refCodes?: { data: Int32Array; frames: number }
+  maxChars?: number
 }
 
 
@@ -29,6 +32,15 @@ export interface SynthResult {
   frames: number
   textTokens: number[]
   milliseconds: number
+}
+
+export interface SynthChunk {
+  samples: Float32Array
+  sampleRate: number
+  frames: number
+  index: number
+  total: number
+  text: string
 }
 
 const PATHS = {
@@ -131,6 +143,49 @@ export class Synthesizer {
     onProgress?.({ stage: 'done', ratio: 1 })
     return {
       samples,
+      sampleRate: 24000,
+      frames,
+      textTokens: [],
+      milliseconds: performance.now() - start,
+    }
+  }
+
+  async generateStream(
+    text: string,
+    options: SynthOptions = {},
+    onProgress?: (progress: SynthProgress) => void,
+    onChunk?: (chunk: SynthChunk) => void,
+  ): Promise<SynthResult> {
+    const chunks = chunkText(text, { maxChars: options.maxChars ?? 240 })
+    if (chunks.length <= 1) return this.generate(text, options, onProgress)
+
+    const parts: Float32Array[] = []
+    let frames = 0
+    const start = performance.now()
+    for (let i = 0; i < chunks.length; i++) {
+      const result = await this.generate(chunks[i], options, (progress) =>
+        onProgress?.({ ...progress, ratio: (i + progress.ratio) / chunks.length }),
+      )
+      const chunk: SynthChunk = {
+        samples: result.samples,
+        sampleRate: result.sampleRate,
+        frames: result.frames,
+        index: i,
+        total: chunks.length,
+        text: chunks[i],
+      }
+      parts.push(result.samples)
+      frames += result.frames
+      onChunk?.(chunk)
+      onProgress?.({
+        stage: 'generate',
+        ratio: (i + 1) / chunks.length,
+        detail: `part ${i + 1}/${chunks.length}`,
+      })
+    }
+    onProgress?.({ stage: 'done', ratio: 1 })
+    return {
+      samples: concatFloat32(parts),
       sampleRate: 24000,
       frames,
       textTokens: [],

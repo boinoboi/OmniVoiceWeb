@@ -1,51 +1,79 @@
 import { describe, expect, it } from 'vitest'
-import { AUDIO_MASK_ID, NUM_CODEBOOKS, iterativeUnmask, type BackboneStep } from './algorithm'
+import {
+  AUDIO_MASK_ID,
+  AUDIO_VOCAB,
+  NUM_CODEBOOKS,
+  type BackboneStep,
+  iterativeUnmaskCfg,
+} from './algorithm'
 
-const FRAMES = 5
-const VOCAB = 1025
-
-const mockStep: BackboneStep = async (inputIds, _mask, _seq, genStart, genFrames) => {
-  const logits = new Float32Array(NUM_CODEBOOKS * genFrames * VOCAB)
-  for (let cb = 0; cb < NUM_CODEBOOKS; cb++) {
-    for (let t = 0; t < genFrames; t++) {
-      const off = (cb * genFrames + t) * VOCAB
-      const token = (inputIds[genStart + t] + cb + t + 1) % 1024
-      logits[off + token] = 10
-    }
-  }
+const deterministicStep: BackboneStep = async (_ids, _mask, _seq, _genStart, genFrames) => {
+  const logits = new Float32Array(NUM_CODEBOOKS * genFrames * AUDIO_VOCAB)
+  for (let r = 0; r < NUM_CODEBOOKS * genFrames; r++) logits[r * AUDIO_VOCAB + (r % 1000)] = 10
   return logits
 }
 
-describe('iterativeUnmask', () => {
-  it('unmasks every frame and never returns the mask id', async () => {
-    const result = await iterativeUnmask(
-      { textTokens: [1, 2, 3], numAudioTokens: FRAMES, numSteps: 2 },
-      mockStep,
-    )
-    expect(result.codes.length).toBe(NUM_CODEBOOKS * FRAMES)
-    for (const code of result.codes) {
-      expect(code).toBeGreaterThanOrEqual(0)
-      expect(code).toBeLessThan(AUDIO_MASK_ID)
+function makeInputs(genStart: number, target: number) {
+  const condSeq = genStart + target
+  const condIds = new Int32Array(NUM_CODEBOOKS * condSeq)
+  const condMask = new Uint8Array(condSeq)
+  const uncondIds = new Int32Array(NUM_CODEBOOKS * target)
+  const uncondMask = new Uint8Array(target)
+  return { condIds, condMask, condSeq, genStart, uncondIds, uncondMask }
+}
+
+describe('iterativeUnmaskCfg', () => {
+  it('unmasks every position and returns valid codebook ids', async () => {
+    const target = 6
+    const inputs = makeInputs(2, target)
+    const codes = await iterativeUnmaskCfg(inputs, target, 4, {
+      guidanceScale: 2,
+      tShift: 0.1,
+      layerPenalty: 5,
+      positionTemperature: 5,
+      seed: 0,
+    }, deterministicStep)
+
+    expect(codes.length).toBe(NUM_CODEBOOKS * target)
+    for (let r = 0; r < codes.length; r++) {
+      expect(codes[r]).toBe(r % 1000)
+      expect(codes[r]).toBeLessThan(AUDIO_MASK_ID)
     }
-    expect(result.textLength).toBe(3)
-    expect(result.refFrames).toBe(0)
   })
 
-  it('places prefix codes and masks only the generated region', async () => {
-    const prefix = { data: [7, 7, 7, 7, 7, 7, 7, 7], frames: 1 }
-    let sawMaskedPrefix = false
-    const probe: BackboneStep = async (inputIds, mask, seq, genStart) => {
-      if (inputIds[0] === AUDIO_MASK_ID) sawMaskedPrefix = true
-      expect(mask[genStart - 1]).toBe(0)
-      const logits = new Float32Array(NUM_CODEBOOKS * (seq - genStart) * VOCAB)
-      logits[0] = 1
-      return logits
+  it('writes generated codes back into the conditional and unconditional sequences', async () => {
+    const target = 6
+    const inputs = makeInputs(2, target)
+    const codes = await iterativeUnmaskCfg(inputs, target, 4, {
+      guidanceScale: 2,
+      tShift: 0.1,
+      layerPenalty: 5,
+      positionTemperature: 5,
+      seed: 1,
+    }, deterministicStep)
+
+    for (let cb = 0; cb < NUM_CODEBOOKS; cb++) {
+      for (let t = 0; t < target; t++) {
+        const value = codes[cb * target + t]
+        expect(inputs.condIds[cb * inputs.condSeq + inputs.genStart + t]).toBe(value)
+        expect(inputs.uncondIds[cb * target + t]).toBe(value)
+      }
     }
-    const result = await iterativeUnmask(
-      { textTokens: [1], numAudioTokens: 2, numSteps: 1, prefixCodes: prefix },
-      probe,
-    )
-    expect(sawMaskedPrefix).toBe(false)
-    expect(result.refFrames).toBe(1)
+  })
+
+  it('reports monotone progress down to zero remaining', async () => {
+    const target = 8
+    const inputs = makeInputs(1, target)
+    const remaining: number[] = []
+    await iterativeUnmaskCfg(inputs, target, 5, {
+      guidanceScale: 2,
+      tShift: 0.1,
+      layerPenalty: 5,
+      positionTemperature: 0,
+      seed: 2,
+    }, deterministicStep, (_step, left) => remaining.push(left))
+
+    expect(remaining[remaining.length - 1]).toBe(0)
+    for (let i = 1; i < remaining.length; i++) expect(remaining[i]).toBeLessThanOrEqual(remaining[i - 1])
   })
 })

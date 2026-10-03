@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { encodeWav } from '../engine/audio'
+import { concatFloat32, encodeWav } from '../engine/audio'
 import type { Device } from '../engine/ort'
 
 export type SynthPhase = 'idle' | 'loading' | 'ready' | 'generating' | 'error'
@@ -36,6 +36,8 @@ interface WorkerMessage {
   sampleRate?: number
   frames?: number
   milliseconds?: number
+  index?: number
+  total?: number
 }
 
 interface Pending {
@@ -47,7 +49,16 @@ export function useSynthesizer(device: Device) {
   const workerRef = useRef<Worker | null>(null)
   const pendingRef = useRef<Pending | null>(null)
   const urlRef = useRef<string | null>(null)
+  const chunksRef = useRef<Float32Array[]>([])
   const [view, setView] = useState<SynthView>(initial)
+
+  const publish = useCallback((parts: Float32Array[], sampleRate: number): string => {
+    const wav = encodeWav(concatFloat32(parts), sampleRate)
+    const url = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }))
+    if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+    urlRef.current = url
+    return url
+  }, [])
 
   const getWorker = useCallback((): Worker => {
     if (!workerRef.current) {
@@ -68,6 +79,19 @@ export function useSynthesizer(device: Device) {
             ratio: message.progress!.ratio,
             detail: message.progress!.detail ?? '',
           }))
+        } else if (message.type === 'chunk') {
+          if (message.samples) chunksRef.current.push(message.samples)
+          const url = publish(chunksRef.current, message.sampleRate ?? 24000)
+          setView((v) => ({
+            ...v,
+            phase: 'generating',
+            audioUrl: url,
+            frames: v.frames + (message.frames ?? 0),
+            detail:
+              message.index !== undefined && message.total !== undefined
+                ? `part ${message.index + 1}/${message.total}`
+                : v.detail,
+          }))
         } else if (message.type === 'notice') {
           setView((v) => ({ ...v, notice: message.message ?? null }))
         } else if (message.type === 'loaded') {
@@ -81,7 +105,7 @@ export function useSynthesizer(device: Device) {
       workerRef.current = worker
     }
     return workerRef.current
-  }, [])
+  }, [publish])
 
   const send = useCallback(
     (message: unknown): Promise<WorkerMessage | 'loaded'> => {
@@ -97,21 +121,20 @@ export function useSynthesizer(device: Device) {
   const generate = useCallback(
     async (text: string) => {
       if (!text.trim()) return
+      chunksRef.current = []
       setView((v) => ({ ...v, phase: 'loading', error: null, notice: null, ratio: 0, detail: '' }))
       try {
         await send({ type: 'load', device })
         setView((v) => ({ ...v, phase: 'generating', stage: 'generate', ratio: 0, detail: '' }))
         const result = (await send({ type: 'generate', text })) as WorkerMessage
-        if (!result.samples) throw new Error('No audio returned')
-        const wav = encodeWav(result.samples, result.sampleRate ?? 24000)
-        const url = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }))
-        if (urlRef.current) URL.revokeObjectURL(urlRef.current)
-        urlRef.current = url
+        const samples = result.samples ?? concatFloat32(chunksRef.current)
+        if (!samples || samples.length === 0) throw new Error('No audio returned')
+        const url = publish([samples], result.sampleRate ?? 24000)
         setView((v) => ({
           ...v,
           phase: 'ready',
           audioUrl: url,
-          frames: result.frames ?? 0,
+          frames: result.frames ?? v.frames,
           milliseconds: result.milliseconds ?? 0,
           ratio: 1,
         }))
@@ -123,7 +146,7 @@ export function useSynthesizer(device: Device) {
         }))
       }
     },
-    [device, send],
+    [device, send, publish],
   )
 
   useEffect(() => {

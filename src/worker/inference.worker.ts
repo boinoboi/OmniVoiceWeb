@@ -11,7 +11,7 @@ const synth = new Synthesizer()
 
 type Incoming =
   | { type: 'load'; device: Device }
-  | { type: 'generate'; text: string; numAudioTokens?: number; numSteps?: number }
+  | { type: 'generate'; text: string; numAudioTokens?: number; numSteps?: number; maxChars?: number }
   | { type: 'dispose' }
 
 const progress = (p: SynthProgress) => scope.postMessage({ type: 'progress', progress: p })
@@ -33,10 +33,23 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
       }
       scope.postMessage({ type: 'loaded', device: synth.device })
     } else if (message.type === 'generate') {
-      const result = await synth.generate(
+      const result = await synth.generateStream(
         message.text,
-        { numAudioTokens: message.numAudioTokens, numSteps: message.numSteps },
+        {
+          numAudioTokens: message.numAudioTokens,
+          numSteps: message.numSteps,
+          maxChars: message.maxChars,
+        },
         progress,
+        (chunk) =>
+          scope.postMessage({
+            type: 'chunk',
+            samples: chunk.samples,
+            sampleRate: chunk.sampleRate,
+            frames: chunk.frames,
+            index: chunk.index,
+            total: chunk.total,
+          }),
       )
       scope.postMessage(
         {

@@ -51,6 +51,53 @@ export async function clearModelCache(): Promise<void> {
   await caches.delete(MODEL_CACHE_NAME)
 }
 
+const CACHE_PREFIX = (): string => `${location.origin}/__omnivoice_models__/`
+
+export function filesToPrune(profile: Profile, cachedPaths: Iterable<string>): string[] {
+  const keep = new Set(filesForProfile(profile).map((file) => file.path))
+  const victims: string[] = []
+  for (const path of cachedPaths) if (!keep.has(path)) victims.push(path)
+  return victims
+}
+
+export async function listCachedPaths(): Promise<string[]> {
+  if (!supportsCache()) return []
+  const cache = await openModelCache()
+  const prefix = CACHE_PREFIX()
+  const keys = await cache.keys()
+  return keys
+    .map((key) => key.url)
+    .filter((url) => url.startsWith(prefix))
+    .map((url) => url.slice(prefix.length))
+}
+
+export async function deleteCached(path: string): Promise<void> {
+  if (!supportsCache()) return
+  const cache = await openModelCache()
+  await cache.delete(cacheKey(path))
+}
+
+export async function pruneCache(profile: Profile): Promise<string[]> {
+  if (!supportsCache()) return []
+  const victims = filesToPrune(profile, await listCachedPaths())
+  for (const path of victims) await deleteCached(path)
+  return victims
+}
+
+export async function cachedBytes(): Promise<number> {
+  if (!supportsCache()) return 0
+  const cache = await openModelCache()
+  const keys = await cache.keys()
+  let total = 0
+  for (const key of keys) {
+    const response = await cache.match(key)
+    if (!response) continue
+    const header = Number(response.headers.get('content-length'))
+    total += Number.isFinite(header) && header > 0 ? header : (await response.clone().blob()).size
+  }
+  return total
+}
+
 async function putBlob(path: string, blob: Blob): Promise<void> {
   const cache = await openModelCache()
   await cache.put(

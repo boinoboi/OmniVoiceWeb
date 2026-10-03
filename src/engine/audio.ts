@@ -66,6 +66,18 @@ export function decodeWav(data: ArrayBuffer): DecodedAudio {
   return { sampleRate, samples: mono }
 }
 
+export function concatFloat32(parts: readonly Float32Array[]): Float32Array {
+  let length = 0
+  for (const part of parts) length += part.length
+  const out = new Float32Array(length)
+  let offset = 0
+  for (const part of parts) {
+    out.set(part, offset)
+    offset += part.length
+  }
+  return out
+}
+
 export function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
   const buffer = new ArrayBuffer(44 + samples.length * 2)
   const view = new DataView(buffer)

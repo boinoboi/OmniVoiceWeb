@@ -17,7 +17,7 @@ const args = useRealGpu
 
 const browser = await puppeteer.launch({
   executablePath,
-  headless: true,
+  headless: process.env.E2E_HEADFUL !== '1',
   protocolTimeout: timeoutMs + 120_000,
   args,
 })
@@ -38,6 +38,15 @@ page.on('console', (m) => {
 
 console.log(`loading ${url}`)
 await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+
+const adapter = await page.evaluate(async () => {
+  if (!navigator.gpu) return 'no navigator.gpu'
+  const a = await navigator.gpu.requestAdapter()
+  if (!a) return 'no WebGPU adapter'
+  const i = a.info ?? {}
+  return `${i.vendor ?? '?'} | ${i.architecture ?? '?'} | ${i.description ?? '?'}`
+})
+console.log('webgpu adapter:', adapter)
 
 await page.waitForSelector('.textarea', { timeout: 30_000 })
 await page.click('.textarea')
