@@ -104,7 +104,7 @@ http://localhost:4173/` (headful is required; headless exposes no WebGPU adapter
 
 - **Browser uses the int4 bidir LLM (280 MB), exact ASR.** fp16 was ruled out (this WebGPU adapter
   lacks `shader-f16`); int4 MatMulNBits keeps f32 activations so needs no f16. Hosted at HF
-  `asdasdsadscxzxc/omnivoice-web-bidir` (`BIDIR_BASE`, `manifest.ts`, `PATHS.llm`). fp32/fp16 also
+  `PranavBoi/omnivoice-web` (`BIDIR_BASE`, `manifest.ts`, `PATHS.llm`). fp32/fp16 also
   live there if needed.
 - int4 made with `tools/.venv-quant` (Python 3.12, `onnxruntime==1.20.1`, `onnx==1.16.2`), legacy
   `MatMul4BitsQuantizer`; pass the raw `ModelProto` (double-wrapping an `ONNXModel` crashes with
@@ -121,7 +121,7 @@ http://localhost:4173/` (headful is required; headless exposes no WebGPU adapter
   (non-causal). Result matches the PyTorch reference exactly.
 - `tools/.venv-ref` has torch cu128 + `omnivoice`. `tools/.venv` has ORT-gpu, transformers,
   faster-whisper, onnx, onnxconverter-common.
-- The browser fetches the re-exported model from HF `asdasdsadscxzxc/omnivoice-web-bidir`
+- The browser fetches the re-exported model from HF `PranavBoi/omnivoice-web`
   (`llm_decoder_fp16.onnx` + `.data`, 885 MB). `BIDIR_BASE` in `manifest.ts`.
 
 ### Reference commands (tools/)
@@ -144,9 +144,8 @@ ASR/WER check: faster-whisper `WhisperModel('base', cpu, int8)`; resample to 16k
 ### Next steps (in order)
 1. ~~Validate browser CFG+bidir on a real GPU~~ **DONE** (exact ASR). Give the user a one-command
    tester + a phone test.
-2. Host/deploy: point `BIDIR_BASE` at a stable repo (currently the throwaway HF `asdasdsadscxzxc`);
-   reduce download size — **int4 MatMulNBits is the target** (ORT 1.30 quantizer broken; legacy
-   removed — use an older ORT in a throwaway venv or hand-pack).
+2. ~~Host/deploy + int4~~ **DONE**: `BIDIR_BASE` → `PranavBoi/omnivoice-web` (int4 280 MB, fp16,
+   fp32 + model card). Reproduce int4 with `tools/.venv-quant` + `tools/quantize_llm_legacy.py`.
 3. Voice cloning end-to-end test (engine + UI landed); add `voices.json` precompute; stabilises
    short input.
 4. Cache/memory manager: cross-profile LRU + session/GPU release + device-tier select; dedupe ORT wasm.

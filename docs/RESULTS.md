@@ -157,7 +157,7 @@ fp32 `.data` too. `tools/generate_cfg.py --llm bidir/llm_decoder_fp16.onnx` on t
 | **fp16 bidir + CFG** | **exact** | 773 Hz | **81.2%** | 2.64 s |
 
 So fp16 is faithful enough for the backbone at **half the size** — this is the browser default
-(`BIDIR_BASE` in `manifest.ts`, hosted at HF `asdasdsadscxzxc/omnivoice-web-bidir`). fp16 is a
+(`BIDIR_BASE` in `manifest.ts`, hosted at HF `PranavBoi/omnivoice-web`). fp16 is a
 **WebGPU-only** rung (ORT WASM has no fp16 kernels).
 
 ## Feature work landed (Phases 5–7, engine + UI)

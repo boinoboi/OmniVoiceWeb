@@ -2,7 +2,7 @@ export const HF_REPO = 'onnx-community/OmniVoice-Onnx'
 export const HF_REVISION = 'main'
 export const HF_BASE = `https://huggingface.co/${HF_REPO}/resolve/${HF_REVISION}/`
 export const BIDIR_BASE =
-  'https://huggingface.co/asdasdsadscxzxc/omnivoice-web-bidir/resolve/main/'
+  'https://huggingface.co/PranavBoi/omnivoice-web/resolve/main/'
 
 export type Profile = 'lite' | 'full'
 export type AssetKind = 'backbone' | 'tokenizer' | 'decoder' | 'encoder'
