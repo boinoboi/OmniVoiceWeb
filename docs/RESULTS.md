@@ -123,6 +123,28 @@ We must **re-export the LLM with non-causal (bidirectional) attention** — whic
 proposal's ONNX-export deliverable (Phase 2/8), now clearly *necessary*, not optional. The
 `omnivoice` + torch env we just installed is the source for that export.
 
+## BREAKTHROUGH: bidirectional LLM export + CFG reproduces the reference
+
+Fix = re-export the Qwen3 core with a 4-D all-zero additive mask (full **non-causal**
+attention), then run the real prompt + CFG. `tools/export_llm.py` produces
+`tools/models/bidir/llm_decoder.onnx` (1.77 GB fp32, zero `GroupQueryAttention` nodes).
+`tools/generate_cfg.py --llm bidir/llm_decoder.onnx` runs it.
+
+| pipeline | ASR round-trip | centroid | speech-band | dur |
+|---|---|---|---|---|
+| reference (PyTorch) | exact | 1364 Hz | 95.5% | 2.64 s |
+| causal ONNX (old) | "Please, please, please…" | 144 Hz | 16.3% | 3.60 s |
+| **bidir ONNX + CFG** | **exact** | 878 Hz | **88.1%** | **2.64 s** |
+
+Code-switching (headline): "Hola, kaise ho tum? Aaj hum ek test kar rahe hain." →
+ASR `अला कैसे हो तुम आज हम एक टेस्ट कर रहे हैं` (correct Hinglish), 55.9% speech-band.
+Generation is ~3.7 s on the 3090 (32 steps, 66 frames).
+
+**The critical fix was the export, not the algorithm** — the onnx-community causal graph
+cannot be recovered by prompt/CFG alone. This validates the proposal's export-toolkit
+deliverable as essential. Browser path now requires: (a) TS port of prompt+CFG, (b) a
+browser-sized (int4/fp16) bidirectional LLM.
+
 ## Export defects found
 
 - `audio_tokenizer/fp16/semantic_encoder.onnx` is **malformed**: a `LayerNormalization` node is

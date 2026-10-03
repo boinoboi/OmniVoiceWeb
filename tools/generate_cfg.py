@@ -82,16 +82,16 @@ def build_prompt(tok, text, lang=None, instruct=None, ref_text=None, ref_codes=N
     return cond[None], cond_mask[None], uncond[None], uncond_mask[None], gen_start
 
 
-def load_sessions(provider: str = "CPUExecutionProvider"):
+def load_sessions(provider: str = "CPUExecutionProvider", llm_path: str = "int4/llm_decoder.onnx"):
     import onnxruntime as ort
 
     opts = ort.SessionOptions()
     opts.log_severity_level = 3
 
-    def s(name):
-        return ort.InferenceSession(str(MODELS / "int4" / name), sess_options=opts, providers=[provider])
+    def s(rel):
+        return ort.InferenceSession(str(MODELS / rel), sess_options=opts, providers=[provider])
 
-    return s("audio_embeddings_encoder.onnx"), s("llm_decoder.onnx"), s("audio_heads_decoder.onnx")
+    return s("int4/audio_embeddings_encoder.onnx"), s(llm_path), s("int4/audio_heads_decoder.onnx")
 
 
 def model_forward(emb, llm, heads, input_ids, audio_mask):
@@ -180,12 +180,14 @@ def main():
     ap.add_argument("--ref-wav", default=None)
     ap.add_argument("--ref-text", default=None)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--llm", default="int4/llm_decoder.onnx")
+    ap.add_argument("--provider", default="CPUExecutionProvider")
     args = ap.parse_args()
 
     from transformers import AutoTokenizer
 
     tok = AutoTokenizer.from_pretrained(MODELS / "int4")
-    emb, llm, heads = load_sessions("CPUExecutionProvider")
+    emb, llm, heads = load_sessions(args.provider, args.llm)
 
     ref_codes = None
     if args.ref_wav:

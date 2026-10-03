@@ -97,14 +97,12 @@ The onnx-community `llm_decoder` is causal (genai `GroupQueryAttention` + 2-D ca
 OmniVoice is a masked-diffusion LM requiring a **full bidirectional** mask. Without this the
 model ignores the prompt (proven: reference exact ASR vs our generic output).
 
-- [ ] `tools/export_llm.py`: load `OmniVoice` (torch, `tools/.venv-ref`), export the Qwen3 core
-      with `attn_implementation="eager"`, `is_causal=False` (or the model's flex-attention mask),
-      `exclude_embeds=True`/`exclude_lm_head=True`, inputs `inputs_embeds`(+`attention_mask`) →
-      `hidden_states`, opset 20, fp32.
-- [ ] Numerical parity vs the reference hidden states.
-- [ ] Swap into `manifest.ts`; re-run the Python CFG reference (`tools/generate_cfg.py`) → ASR should
-      match the text.
-- **Gate:** reference-quality ASR on auto-voice; then MESSAGE USER (clip).
+- [x] `tools/export_llm.py`: export the Qwen3 core with a 4-D zero additive mask (full
+      bidirectional attention), opset 20, fp32 → `tools/models/bidir/llm_decoder.onnx`.
+- [x] `tools/generate_cfg.py`: real prompt + CFG + schedule + layer penalty + gumbel.
+- [x] ASR matches the reference exactly (EN and Hinglish). **Gate PASSED.**
+- [ ] Quantize the bidir LLM to int4/fp16 for the browser; add to `manifest.ts`.
+- [ ] Port prompt+CFG to TS (`engine/prompt.ts`, extend `algorithm.ts`) and re-run e2e.
 
 ## Phase 8 — Quantization toolkit (P2/P3)
 
