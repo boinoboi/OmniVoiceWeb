@@ -26,6 +26,13 @@ describe('transliterate', () => {
     expect(transliterate('नमस्ते दोस्तो')).toBe('नमस्ते दोस्तो')
   })
 
+  it('keeps common English words that collide with the Hindi dictionary', () => {
+    const out = transliterate('Let us test the system. bhai aaj toh hum kuch karenge')
+    expect(out).toContain('Let us test the system')
+    expect(out).toContain('भाई')
+    expect(out).toContain('करेंगे')
+  })
+
   it('handles semi-Devanagari + semi-English input', () => {
     const out = transliterate('नमस्ते bhai this is a test')
     expect(out).toContain('नमस्ते')

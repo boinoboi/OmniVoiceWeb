@@ -19,7 +19,20 @@ export const SUPPORTED_SCRIPTS: { id: string; label: string }[] = [
 ]
 
 const ENGLISH_PRIORITY = new Set([
-  'a', 'i', 'hi', 'hello', 'hey', 'ok', 'okay', 'bye', 'ai', 'app', 'web', 'api',
+  'a', 'i', 'an', 'the', 'and', 'or', 'but', 'if', 'then', 'so', 'of', 'in', 'on', 'at', 'by',
+  'for', 'with', 'from', 'as', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'am', 'do',
+  'does', 'did', 'have', 'has', 'had', 'will', 'would', 'can', 'could', 'should', 'may', 'might',
+  'must', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'their', 'we', 'us',
+  'our', 'you', 'your', 'my', 'not', 'no', 'yes', 'let', 'get', 'got', 'make', 'made', 'take',
+  'test', 'system', 'data', 'model', 'code', 'ai', 'app', 'web', 'api', 'hello', 'hi', 'hey',
+  'ok', 'okay', 'bye', 'please', 'thanks', 'thank', 'new', 'good', 'bad', 'fast', 'slow', 'time',
+  'work', 'use', 'using', 'user', 'file', 'type', 'name', 'text', 'audio', 'voice', 'video',
+  'image', 'link', 'run', 'try', 'also', 'just', 'only', 'very', 'more', 'most', 'much', 'many',
+  'some', 'any', 'all', 'one', 'two', 'three', 'here', 'there', 'now', 'next', 'last', 'first',
+  'well', 'way', 'thing', 'things', 'people', 'sorry', 'sure', 'about', 'after', 'before',
+  'because', 'what', 'when', 'where', 'who', 'how', 'why', 'which', 'while', 'into', 'over',
+  'under', 'up', 'down', 'out', 'off', 'again', 'still', 'even', 'back', 'same', 'other', 'each',
+  'every',
 ])
 
 const INDIC_RANGES =

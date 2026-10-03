@@ -147,11 +147,11 @@ export function Synthesizer({ device }: { device: Device }) {
 
       {device === 'wasm' && (
         <p className="notice caution">
-          WebGPU isn't available in this browser, so generation runs on the CPU (WASM) in a
-          reduced-quality fast mode (fewer steps, no guidance). If your device supports WebGPU but
-          the app can't get an adapter, Chrome may be blocklisting it — enable{' '}
-          <span className="mono">chrome://flags/#enable-unsafe-webgpu</span> (and{' '}
-          <span className="mono">#ignore-gpu-blocklist</span>), relaunch Chrome, and reload.
+          WebGPU isn't available, so generation runs on the CPU (WASM) — slow and lower quality. For
+          good audio, get WebGPU working: on Android Chrome only Qualcomm/ARM GPUs are enabled by
+          default, so AMD/Exynos devices must enable{' '}
+          <span className="mono">chrome://flags/#enable-unsafe-webgpu</span> and{' '}
+          <span className="mono">#ignore-gpu-blocklist</span>, then relaunch Chrome.
         </p>
       )}
 

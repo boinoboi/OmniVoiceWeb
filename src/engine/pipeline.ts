@@ -166,9 +166,9 @@ export class Synthesizer {
 
     const cpu = this.device === 'wasm'
     const estimated = options.numAudioTokens ?? estimateTargetTokens(text)
-    const frames = cpu ? Math.min(estimated, 220) : estimated
-    const steps = options.numSteps ?? (cpu ? 12 : 32)
-    const guidanceScale = options.guidanceScale ?? (cpu ? 0 : 2)
+    const frames = cpu ? Math.min(estimated, 180) : estimated
+    const steps = options.numSteps ?? (cpu ? 10 : 32)
+    const guidanceScale = options.guidanceScale ?? 2
 
     onProgress?.({ stage: 'tokenize', ratio: 0 })
     const prepared = await prepareInputs(text, frames, {
