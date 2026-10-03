@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { concatFloat32, encodeWav } from '../engine/audio'
+import { analyzeAudio, type AudioMetrics } from '../engine/metrics'
 import type { Device } from '../engine/ort'
 
 export type SynthPhase = 'idle' | 'loading' | 'ready' | 'generating' | 'error'
@@ -21,6 +22,7 @@ export interface SynthView {
   milliseconds: number
   error: string | null
   notice: string | null
+  metrics: AudioMetrics | null
 }
 
 const initial: SynthView = {
@@ -33,6 +35,7 @@ const initial: SynthView = {
   milliseconds: 0,
   error: null,
   notice: null,
+  metrics: null,
 }
 
 interface WorkerMessage {
@@ -146,7 +149,8 @@ export function useSynthesizer(device: Device) {
         })) as WorkerMessage
         const samples = result.samples ?? concatFloat32(chunksRef.current)
         if (!samples || samples.length === 0) throw new Error('No audio returned')
-        const url = publish([samples], result.sampleRate ?? 24000)
+        const rate = result.sampleRate ?? 24000
+        const url = publish([samples], rate)
         setView((v) => ({
           ...v,
           phase: 'ready',
@@ -154,6 +158,7 @@ export function useSynthesizer(device: Device) {
           frames: result.frames ?? v.frames,
           milliseconds: result.milliseconds ?? 0,
           ratio: 1,
+          metrics: analyzeAudio(samples, rate),
         }))
       } catch (error) {
         setView((v) => ({

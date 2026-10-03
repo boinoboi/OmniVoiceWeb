@@ -36,6 +36,12 @@ page.on('console', (m) => {
     console.log('CONSOLE ERR', m.text())
   }
 })
+page.on('requestfailed', (r) => {
+  const url = r.url()
+  if (url.includes('huggingface') || url.includes('hf.co')) {
+    console.log('REQFAIL', url.slice(0, 120), r.failure()?.errorText)
+  }
+})
 
 console.log(`loading ${url}`)
 await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 })
@@ -72,15 +78,20 @@ await page.evaluate(() => {
 const poll = setInterval(async () => {
   try {
     const stage = await page.evaluate(() => {
-      const progress = document.querySelector('.card .progress span')
-      const status = [...document.querySelectorAll('.actions .muted')].map((e) => e.textContent).join(' ')
-      return `bar=${progress?.getAttribute('style') ?? '?'} ${status}`
+      const synth = [...document.querySelectorAll('.card')].find(
+        (card) => card.querySelector('h2')?.textContent === 'Synthesize',
+      )
+      const bar = synth?.querySelector('.progress span')
+      const busy = synth?.querySelector('.actions .muted')?.textContent ?? ''
+      const notice = synth?.querySelector('.notice')?.textContent ?? ''
+      const badge = synth?.querySelector('.badge')?.textContent ?? ''
+      return `bar=${bar?.getAttribute('style') ?? '?'} badge="${badge}" busy="${busy}" notice="${notice}"`
     })
     console.log('  …', stage)
   } catch {
     /* page busy */
   }
-}, 15_000)
+}, 10_000)
 
 await page.waitForSelector('audio[src^="blob:"]', { timeout: timeoutMs })
 clearInterval(poll)
