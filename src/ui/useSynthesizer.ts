@@ -4,6 +4,13 @@ import type { Device } from '../engine/ort'
 
 export type SynthPhase = 'idle' | 'loading' | 'ready' | 'generating' | 'error'
 
+export interface VoiceReference {
+  data: Int32Array
+  frames: number
+  text?: string
+  name?: string
+}
+
 export interface SynthView {
   phase: SynthPhase
   stage: string
@@ -38,6 +45,7 @@ interface WorkerMessage {
   milliseconds?: number
   index?: number
   total?: number
+  codes?: Int32Array
 }
 
 interface Pending {
@@ -50,6 +58,8 @@ export function useSynthesizer(device: Device) {
   const pendingRef = useRef<Pending | null>(null)
   const urlRef = useRef<string | null>(null)
   const chunksRef = useRef<Float32Array[]>([])
+  const referenceRef = useRef<VoiceReference | null>(null)
+  const [reference, setReferenceState] = useState<VoiceReference | null>(null)
   const [view, setView] = useState<SynthView>(initial)
 
   const publish = useCallback((parts: Float32Array[], sampleRate: number): string => {
@@ -126,7 +136,14 @@ export function useSynthesizer(device: Device) {
       try {
         await send({ type: 'load', device })
         setView((v) => ({ ...v, phase: 'generating', stage: 'generate', ratio: 0, detail: '' }))
-        const result = (await send({ type: 'generate', text })) as WorkerMessage
+        const ref = referenceRef.current
+        const result = (await send({
+          type: 'generate',
+          text,
+          refCodes: ref?.data,
+          refFrames: ref?.frames,
+          refText: ref?.text,
+        })) as WorkerMessage
         const samples = result.samples ?? concatFloat32(chunksRef.current)
         if (!samples || samples.length === 0) throw new Error('No audio returned')
         const url = publish([samples], result.sampleRate ?? 24000)
@@ -149,6 +166,46 @@ export function useSynthesizer(device: Device) {
     [device, send, publish],
   )
 
+  const encodeReference = useCallback(
+    async (samples: Float32Array, name?: string, text?: string): Promise<VoiceReference> => {
+      setView((v) => ({
+        ...v,
+        phase: 'loading',
+        stage: 'clone',
+        ratio: 0,
+        detail: 'encoding reference…',
+        error: null,
+      }))
+      try {
+        const result = (await send({ type: 'encode', samples, device })) as WorkerMessage
+        if (!result.codes) throw new Error('Reference encoding returned no codes')
+        const ref: VoiceReference = {
+          data: result.codes,
+          frames: result.frames ?? 0,
+          text: text?.trim() || undefined,
+          name,
+        }
+        referenceRef.current = ref
+        setReferenceState(ref)
+        setView((v) => ({ ...v, phase: 'ready', stage: '', ratio: 1, detail: '' }))
+        return ref
+      } catch (error) {
+        setView((v) => ({
+          ...v,
+          phase: 'error',
+          error: error instanceof Error ? error.message : String(error),
+        }))
+        throw error
+      }
+    },
+    [device, send],
+  )
+
+  const clearReference = useCallback(() => {
+    referenceRef.current = null
+    setReferenceState(null)
+  }, [])
+
   useEffect(() => {
     return () => {
       workerRef.current?.terminate()
@@ -156,5 +213,5 @@ export function useSynthesizer(device: Device) {
     }
   }, [])
 
-  return { view, generate }
+  return { view, generate, encodeReference, reference, clearReference }
 }

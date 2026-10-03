@@ -11,7 +11,17 @@ const synth = new Synthesizer()
 
 type Incoming =
   | { type: 'load'; device: Device }
-  | { type: 'generate'; text: string; numAudioTokens?: number; numSteps?: number; maxChars?: number }
+  | {
+      type: 'generate'
+      text: string
+      numAudioTokens?: number
+      numSteps?: number
+      maxChars?: number
+      refCodes?: Int32Array
+      refFrames?: number
+      refText?: string
+    }
+  | { type: 'encode'; samples: Float32Array; device: Device }
   | { type: 'dispose' }
 
 const progress = (p: SynthProgress) => scope.postMessage({ type: 'progress', progress: p })
@@ -39,6 +49,11 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
           numAudioTokens: message.numAudioTokens,
           numSteps: message.numSteps,
           maxChars: message.maxChars,
+          refText: message.refText,
+          refCodes:
+            message.refCodes && message.refFrames
+              ? { data: message.refCodes, frames: message.refFrames }
+              : undefined,
         },
         progress,
         (chunk) =>
@@ -60,6 +75,14 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
           milliseconds: result.milliseconds,
         },
         [result.samples.buffer],
+      )
+    } else if (message.type === 'encode') {
+      if (!synth.loaded) await synth.load(message.device, 'lite', progress)
+      await synth.loadEncoders(progress)
+      const reference = await synth.encodeReference(message.samples)
+      scope.postMessage(
+        { type: 'encoded', codes: reference.data, frames: reference.frames },
+        [reference.data.buffer],
       )
     } else if (message.type === 'dispose') {
       await synth.dispose()

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { resample } from '../engine/audio'
 import { useSynthesizer } from './useSynthesizer'
 import type { Device } from '../engine/ort'
 
@@ -8,10 +9,42 @@ const EXAMPLES = [
   'Bonjour, je vais bien — thanks for asking.',
 ]
 
+async function decodeToMono(file: File): Promise<Float32Array> {
+  const data = await file.arrayBuffer()
+  const context = new AudioContext()
+  try {
+    const decoded = await context.decodeAudioData(data)
+    const mono = new Float32Array(decoded.length)
+    const channels = decoded.numberOfChannels
+    for (let ch = 0; ch < channels; ch++) {
+      const channel = decoded.getChannelData(ch)
+      for (let i = 0; i < channel.length; i++) mono[i] += channel[i] / channels
+    }
+    return resample(mono, decoded.sampleRate, 24000)
+  } finally {
+    await context.close()
+  }
+}
+
 export function Synthesizer({ device }: { device: Device }) {
   const [text, setText] = useState(EXAMPLES[1])
-  const { view, generate } = useSynthesizer(device)
+  const { view, generate, encodeReference, reference, clearReference } = useSynthesizer(device)
+  const [refText, setRefText] = useState('')
+  const [refStatus, setRefStatus] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
   const busy = view.phase === 'loading' || view.phase === 'generating'
+
+  const onPickFile = async (file: File): Promise<void> => {
+    setRefStatus(`decoding ${file.name}…`)
+    try {
+      const samples = await decodeToMono(file)
+      setRefStatus(`encoding ${(samples.length / 24000).toFixed(1)}s reference…`)
+      await encodeReference(samples, file.name, refText)
+      setRefStatus(null)
+    } catch (error) {
+      setRefStatus(error instanceof Error ? error.message : String(error))
+    }
+  }
 
   return (
     <section className="card">
@@ -67,6 +100,53 @@ export function Synthesizer({ device }: { device: Device }) {
       </div>
 
       {view.audioUrl && <audio className="player" controls src={view.audioUrl} />}
+
+      <details className="cloner">
+        <summary>Clone a voice (optional)</summary>
+        <p className="muted small">
+          Upload a 3–10s clip. Needs the Full profile (Higgs encoders, ~654 MB, downloaded on first
+          use). Only clone voices you have consent to use.
+        </p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="audio/*"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) void onPickFile(file)
+            e.target.value = ''
+          }}
+        />
+        <input
+          className="textarea"
+          placeholder="Transcript of the clip (optional, improves fidelity)"
+          value={refText}
+          disabled={busy}
+          onChange={(e) => setRefText(e.target.value)}
+        />
+        <div className="actions">
+          <button
+            className="btn ghost"
+            type="button"
+            disabled={busy}
+            onClick={() => fileRef.current?.click()}
+          >
+            Choose reference clip
+          </button>
+          {reference && (
+            <button className="btn ghost" type="button" onClick={clearReference}>
+              Clear voice
+            </button>
+          )}
+        </div>
+        {reference && (
+          <p className="muted small">
+            Active voice: {reference.name ?? 'reference'} · {reference.frames} frames
+          </p>
+        )}
+        {refStatus && <p className="muted small">{refStatus}</p>}
+      </details>
 
       {view.phase === 'ready' && (
         <p className="muted small">
