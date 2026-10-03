@@ -1,14 +1,19 @@
 import type { InferenceSession, Tensor } from 'onnxruntime-web'
 import { AUDIO_VOCAB, NUM_CODEBOOKS, type BackboneStep } from './algorithm'
+import { toFloat16Data, toFloat32 } from './dtype'
 
 const HIDDEN = 1024
 
 export interface OrtLike {
   Tensor: new (
     type: string,
-    data: Float32Array | BigInt64Array | Uint8Array,
+    data: Float32Array | Uint16Array | BigInt64Array | Uint8Array,
     dims: readonly number[],
   ) => Tensor
+}
+
+export interface BackboneOptions {
+  llmFloat16?: boolean
 }
 
 export interface BackboneSession {
@@ -21,10 +26,12 @@ export function createBackboneStep(
   embeddings: BackboneSession,
   llm: BackboneSession,
   heads: BackboneSession,
+  options: BackboneOptions = {},
 ): BackboneStep {
   const llmNames = llm.inputNames
   const hasAttentionMask = llmNames.includes('attention_mask')
   const pastNames = llmNames.filter((name) => name.includes('past'))
+  const llmFloat16 = options.llmFloat16 ?? false
 
   return async (inputIds, audioMask, seq, genStart, genFrames) => {
     const ids = new BigInt64Array(inputIds.length)
@@ -35,9 +42,12 @@ export function createBackboneStep(
       audio_mask: new ortModule.Tensor('bool', audioMask, [1, seq]),
     })
     const embeds = embedsOut.inputs_embeds
+    const embedsData = embeds.data as Float32Array
 
     const feed: Record<string, Tensor> = {
-      inputs_embeds: new ortModule.Tensor('float32', embeds.data as Float32Array, [1, seq, HIDDEN]),
+      inputs_embeds: llmFloat16
+        ? new ortModule.Tensor('float16', toFloat16Data(embedsData), [1, seq, HIDDEN])
+        : new ortModule.Tensor('float32', embedsData, [1, seq, HIDDEN]),
     }
     if (hasAttentionMask) {
       feed.attention_mask = new ortModule.Tensor('int64', new BigInt64Array(seq).fill(1n), [1, seq])
@@ -48,8 +58,9 @@ export function createBackboneStep(
 
     const hiddenOut = await llm.session.run(feed)
     const hidden = hiddenOut.hidden_states
+    const hiddenData = llmFloat16 ? toFloat32(hidden) : (hidden.data as Float32Array)
     const headsOut = await heads.session.run({
-      hidden_states: new ortModule.Tensor('float32', hidden.data as Float32Array, [1, seq, HIDDEN]),
+      hidden_states: new ortModule.Tensor('float32', hiddenData, [1, seq, HIDDEN]),
     })
 
     const logits = headsOut.logits

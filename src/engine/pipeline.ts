@@ -153,7 +153,9 @@ export class Synthesizer {
       refCodes: options.refCodes,
     })
 
-    const step = createBackboneStep(ort, this.embeddings, this.llm, this.heads)
+    const step = createBackboneStep(ort, this.embeddings, this.llm, this.heads, {
+      llmFloat16: PATHS.llm.includes('fp16'),
+    })
     onProgress?.({ stage: 'generate', ratio: 0 })
     const codes = await iterativeUnmaskCfg(
       prepared,

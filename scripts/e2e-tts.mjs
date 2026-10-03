@@ -30,11 +30,13 @@ page.on('pageerror', (e) => {
   errors.push(`pageerror: ${e.message}`)
   console.log('PAGEERROR', e.message)
 })
+const BENIGN = ['VerifyEachNodeIsAssignedToAnEp', 'not assigned to the preferred execution providers', 'Rerunning with verbose']
 page.on('console', (m) => {
-  if (m.type() === 'error') {
-    errors.push(`console: ${m.text()}`)
-    console.log('CONSOLE ERR', m.text())
-  }
+  if (m.type() !== 'error') return
+  const text = m.text()
+  if (BENIGN.some((needle) => text.includes(needle))) return
+  errors.push(`console: ${text}`)
+  console.log('CONSOLE ERR', text)
 })
 page.on('requestfailed', (r) => {
   const url = r.url()

@@ -45,6 +45,16 @@ export function toFloat32(tensor: Tensor): Float32Array {
   throw new Error(`Unsupported tensor type: ${tensor.type}`)
 }
 
+export function toFloat16Data(input: Float32Array): Uint16Array {
+  const ctor = (
+    globalThis as {
+      Float16Array?: new (source: ArrayLike<number>) => ArrayLike<number>
+    }
+  ).Float16Array
+  if (ctor) return new ctor(input) as unknown as Uint16Array
+  return f32ToF16(input)
+}
+
 export function toInt32(tensor: Tensor): Int32Array {
   if (tensor.type === 'int32') return tensor.data as Int32Array
   const data = tensor.data as ArrayLike<bigint | number>
