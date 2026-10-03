@@ -22,7 +22,13 @@ export function SystemCheck({ gpu, device, tier, storage }: Props) {
       <div className="card-head">
         <h2>This device</h2>
         <span className={`badge ${gpu?.available ? 'ok' : gpu ? 'warn' : 'idle'}`}>
-          {gpu === null ? 'checking…' : gpu.available ? 'WebGPU ready' : 'CPU fallback'}
+          {gpu === null
+            ? 'checking…'
+            : gpu.available
+              ? 'WebGPU ready'
+              : gpu.navigatorGpu
+                ? 'No GPU adapter'
+                : 'CPU fallback'}
         </span>
       </div>
       <div className="stats">
@@ -59,6 +65,7 @@ export function SystemCheck({ gpu, device, tier, storage }: Props) {
           </span>
         </div>
       </div>
+      {gpu && !gpu.available && <p className="muted small">{gpu.error}</p>}
     </section>
   )
 }

@@ -42,7 +42,7 @@ export function createBackboneStep(
       audio_mask: new ortModule.Tensor('bool', audioMask, [1, seq]),
     })
     const embeds = embedsOut.inputs_embeds
-    const embedsData = embeds.data as Float32Array
+    const embedsData = new Float32Array(embeds.data as ArrayLike<number>)
 
     const feed: Record<string, Tensor> = {
       inputs_embeds: llmFloat16
@@ -58,7 +58,9 @@ export function createBackboneStep(
 
     const hiddenOut = await llm.session.run(feed)
     const hidden = hiddenOut.hidden_states
-    const hiddenData = llmFloat16 ? toFloat32(hidden) : (hidden.data as Float32Array)
+    const hiddenData = llmFloat16
+      ? toFloat32(hidden)
+      : new Float32Array(hidden.data as ArrayLike<number>)
     const headsOut = await heads.session.run({
       hidden_states: new ortModule.Tensor('float32', hiddenData, [1, seq, HIDDEN]),
     })

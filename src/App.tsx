@@ -41,7 +41,7 @@ export default function App() {
         <ModelManager gpu={gpu} device={device} />
         <EngineLab gpu={gpu} />
         <Dashboard />
-        <Synthesizer device={gpu?.available ? 'webgpu' : 'wasm'} />
+        <Synthesizer device={gpu?.navigatorGpu ? 'webgpu' : 'wasm'} />
       </main>
 
       <footer className="footer">

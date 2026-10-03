@@ -1,5 +1,6 @@
 export interface GpuInfo {
   available: boolean
+  navigatorGpu: boolean
   vendor?: string
   architecture?: string
   device?: string
@@ -24,41 +25,58 @@ interface AdapterLike {
 }
 
 interface GpuLike {
-  requestAdapter(options?: { powerPreference?: string }): Promise<AdapterLike | null>
+  requestAdapter(options?: { powerPreference?: string; forceFallbackAdapter?: boolean }): Promise<AdapterLike | null>
 }
 
 export async function detectGpu(): Promise<GpuInfo> {
   if (typeof navigator === 'undefined') {
-    return { available: false, error: 'No browser environment' }
+    return { available: false, navigatorGpu: false, error: 'No browser environment' }
   }
   const gpu = (navigator as unknown as { gpu?: GpuLike }).gpu
   if (!gpu) {
-    return { available: false, error: 'WebGPU is not supported in this browser' }
-  }
-  let lastError: string | undefined
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const adapter =
-        (await gpu.requestAdapter({ powerPreference: 'high-performance' })) ??
-        (await gpu.requestAdapter())
-      if (adapter) {
-        return {
-          available: true,
-          vendor: adapter.info?.vendor,
-          architecture: adapter.info?.architecture,
-          device: adapter.info?.device,
-          description: adapter.info?.description,
-          maxBufferSize: adapter.limits?.maxBufferSize,
-          maxStorageBufferBindingSize: adapter.limits?.maxStorageBufferBindingSize,
-          shaderF16: adapter.features?.has('shader-f16') ?? false,
-        }
-      }
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error)
+    return {
+      available: false,
+      navigatorGpu: false,
+      error: 'navigator.gpu is undefined — this browser does not expose WebGPU',
     }
-    await new Promise((resolve) => setTimeout(resolve, 250))
   }
-  return { available: false, error: lastError ?? 'No WebGPU adapter available' }
+
+  const request = async (options?: {
+    powerPreference?: string
+    forceFallbackAdapter?: boolean
+  }): Promise<AdapterLike | null | undefined> => {
+    try {
+      return await gpu.requestAdapter(options)
+    } catch {
+      return undefined
+    }
+  }
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const adapter =
+      (await request({ powerPreference: 'high-performance' })) ??
+      (await request()) ??
+      (await request({ forceFallbackAdapter: true }))
+    if (adapter) {
+      return {
+        available: true,
+        navigatorGpu: true,
+        vendor: adapter.info?.vendor,
+        architecture: adapter.info?.architecture,
+        device: adapter.info?.device,
+        description: adapter.info?.description,
+        maxBufferSize: adapter.limits?.maxBufferSize,
+        maxStorageBufferBindingSize: adapter.limits?.maxStorageBufferBindingSize,
+        shaderF16: adapter.features?.has('shader-f16') ?? false,
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300))
+  }
+  return {
+    available: false,
+    navigatorGpu: true,
+    error: 'requestAdapter() returned no adapter (WebGPU present but no compatible GPU/driver)',
+  }
 }
 
 export interface DeviceInfo {
