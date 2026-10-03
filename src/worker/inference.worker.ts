@@ -1,4 +1,5 @@
 import { IdleReleaser } from '../engine/memory'
+import type { Precision } from '../engine/manifest'
 import { Synthesizer, type SynthProgress } from '../engine/pipeline'
 import type { Device } from '../engine/ort'
 
@@ -20,7 +21,7 @@ const idle = new IdleReleaser({
 })
 
 type Incoming =
-  | { type: 'load'; device: Device }
+  | { type: 'load'; device: Device; precision?: Precision }
   | {
       type: 'generate'
       text: string
@@ -43,8 +44,12 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
   if (isWork) idle.cancel()
   try {
     if (message.type === 'load') {
+      const precision: Precision = message.precision ?? 'int4'
+      if (synth.loaded && (synth.device !== message.device || synth.precision !== precision)) {
+        await synth.dispose()
+      }
       try {
-        await synth.load(message.device, 'lite', progress)
+        await synth.load(message.device, 'lite', progress, precision)
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error)
         if (message.device !== 'wasm') {
@@ -53,7 +58,7 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
             message: `WebGPU failed (${detail.slice(0, 160)}) — falling back to WASM`,
           })
           await synth.dispose()
-          await synth.load('wasm', 'lite', progress)
+          await synth.load('wasm', 'lite', progress, 'int4')
         } else {
           throw error
         }

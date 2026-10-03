@@ -7,6 +7,7 @@ export const BIDIR_BASE =
 export type Profile = 'lite' | 'full'
 export type AssetKind = 'backbone' | 'tokenizer' | 'decoder' | 'encoder'
 export type Backend = 'webgpu' | 'wasm'
+export type Precision = 'int4' | 'fp16' | 'fp32'
 
 export interface ModelFile {
   path: string
@@ -15,6 +16,7 @@ export interface ModelFile {
   kind: AssetKind
   requires: Profile
   backends?: Backend[]
+  precision?: Precision
 }
 
 const file = (
@@ -30,7 +32,8 @@ const bidir = (
   bytes: number,
   kind: AssetKind,
   requires: Profile = 'lite',
-): ModelFile => ({ path, url: BIDIR_BASE + path, bytes, kind, requires })
+  precision?: Precision,
+): ModelFile => ({ path, url: BIDIR_BASE + path, bytes, kind, requires, precision })
 
 export const MODEL_FILES: ModelFile[] = [
   file('int4/audio_embeddings_encoder.onnx', 2363, 'backbone', 'lite', ['webgpu']),
@@ -38,8 +41,12 @@ export const MODEL_FILES: ModelFile[] = [
   file('audio_embeddings_encoder.onnx', 2172, 'backbone', 'lite', ['wasm']),
   file('audio_embeddings_encoder.onnx.data', 327426048, 'backbone', 'lite', ['wasm']),
   file('int4/audio_heads_decoder.onnx', 4462676, 'backbone'),
-  bidir('llm_decoder_int4.onnx', 4022710, 'backbone'),
-  bidir('llm_decoder_int4.onnx.data', 275484672, 'backbone'),
+  bidir('llm_decoder_int4.onnx', 4022710, 'backbone', 'lite', 'int4'),
+  bidir('llm_decoder_int4.onnx.data', 275484672, 'backbone', 'lite', 'int4'),
+  bidir('llm_decoder_fp16.onnx', 4885288, 'backbone', 'lite', 'fp16'),
+  bidir('llm_decoder_fp16.onnx.data', 880934912, 'backbone', 'lite', 'fp16'),
+  bidir('llm_decoder.onnx', 4380033, 'backbone', 'lite', 'fp32'),
+  bidir('llm_decoder.onnx.data', 1761869824, 'backbone', 'lite', 'fp32'),
 
   file('int4/tokenizer.json', 11423986, 'tokenizer'),
   file('int4/tokenizer_config.json', 533, 'tokenizer'),
@@ -59,14 +66,25 @@ export const MODEL_FILES: ModelFile[] = [
 export const filesForProfile = (profile: Profile): ModelFile[] =>
   MODEL_FILES.filter((f) => f.requires === 'lite' || profile === 'full')
 
-export const filesForDevice = (backend: Backend, profile: Profile): ModelFile[] =>
-  filesForProfile(profile).filter((f) => !f.backends || f.backends.includes(backend))
+export const filesForDevice = (
+  backend: Backend,
+  profile: Profile,
+  precision: Precision = 'int4',
+): ModelFile[] =>
+  filesForProfile(profile).filter(
+    (f) =>
+      (!f.backends || f.backends.includes(backend)) &&
+      (!f.precision || f.precision === precision),
+  )
 
 export const bytesForProfile = (profile: Profile): number =>
   filesForProfile(profile).reduce((total, f) => total + f.bytes, 0)
 
-export const bytesForDevice = (backend: Backend, profile: Profile): number =>
-  filesForDevice(backend, profile).reduce((total, f) => total + f.bytes, 0)
+export const bytesForDevice = (
+  backend: Backend,
+  profile: Profile,
+  precision: Precision = 'int4',
+): number => filesForDevice(backend, profile, precision).reduce((total, f) => total + f.bytes, 0)
 
 export const fileByPath = (path: string): ModelFile | undefined =>
   MODEL_FILES.find((f) => f.path === path)

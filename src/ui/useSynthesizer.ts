@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { concatFloat32, encodeWav } from '../engine/audio'
+import type { Precision } from '../engine/manifest'
 import { analyzeAudio, type AudioMetrics } from '../engine/metrics'
 import type { Device } from '../engine/ort'
 
@@ -62,7 +63,7 @@ interface Pending {
   reject: (error: Error) => void
 }
 
-export function useSynthesizer(device: Device) {
+export function useSynthesizer(device: Device, precision: Precision = 'int4') {
   const workerRef = useRef<Worker | null>(null)
   const pendingRef = useRef<Pending | null>(null)
   const urlRef = useRef<string | null>(null)
@@ -185,7 +186,7 @@ export function useSynthesizer(device: Device) {
         rtf: null,
       }))
       try {
-        await send({ type: 'load', device })
+        await send({ type: 'load', device, precision })
         setView((v) => ({ ...v, phase: 'generating', stage: 'generate', ratio: 0, detail: '' }))
         const ref = referenceRef.current
         const result = (await send({
@@ -222,7 +223,7 @@ export function useSynthesizer(device: Device) {
         }))
       }
     },
-    [device, send, publish, armWatchdog, clearWatchdog],
+    [device, precision, send, publish, armWatchdog, clearWatchdog],
   )
 
   const encodeReference = useCallback(

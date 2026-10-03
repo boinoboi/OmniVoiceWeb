@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { Precision } from '../engine/manifest'
 import { sanitizeForTts } from '../engine/sanitize'
 import { SUPPORTED_SCRIPTS, transliterate } from '../engine/transliterate'
 import { loadVoices, type PrecomputedVoice } from '../engine/voices'
@@ -35,8 +36,9 @@ async function decodeToMono(file: File): Promise<{ samples: Float32Array; second
 
 export function Synthesizer({ device }: { device: Device }) {
   const [text, setText] = useState(EXAMPLES[1])
+  const [precision, setPrecision] = useState<Precision>('int4')
   const { view, generate, encodeReference, setReference, reference, clearReference } =
-    useSynthesizer(device)
+    useSynthesizer(device, precision)
   const [refText, setRefText] = useState('')
   const [refStatus, setRefStatus] = useState<string | null>(null)
   const [consented, setConsented] = useState(false)
@@ -137,7 +139,25 @@ export function Synthesizer({ device }: { device: Device }) {
           <input type="checkbox" checked={cleanup} onChange={(e) => setCleanup(e.target.checked)} />
           <span>Sanitize input</span>
         </label>
+        <select
+          className="select"
+          value={precision}
+          disabled={busy}
+          onChange={(e) => setPrecision(e.target.value as Precision)}
+          aria-label="Backbone precision"
+        >
+          <option value="int4">Backbone: int4 (fast)</option>
+          <option value="fp16">Backbone: fp16</option>
+          <option value="fp32">Backbone: fp32 (accurate)</option>
+        </select>
       </div>
+      {view.metrics && view.metrics.rms < 0.005 && (
+        <p className="notice warn">
+          Output looks like silence. If you're on WebGPU, this GPU may miscompute the int4 weights —
+          set <strong>Backbone</strong> to <strong>fp16</strong> or <strong>fp32</strong> and
+          regenerate.
+        </p>
+      )}
       {prepared !== text && (
         <div className="preview">
           <span className="preview-label">Model input preview — this is what OmniVoice speaks</span>

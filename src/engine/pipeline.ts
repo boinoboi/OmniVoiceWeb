@@ -5,7 +5,7 @@ import { ensureCached } from './cache'
 import { encodeReference, type EncoderSet, type ReferenceCodes } from './cloning'
 import { estimateTargetTokens } from './duration'
 import { toFloat32 } from './dtype'
-import { filesForDevice, filesForProfile, type Profile } from './manifest'
+import { filesForDevice, filesForProfile, type Precision, type Profile } from './manifest'
 import { createCachedSession, releaseSession, type Device, type SessionHandle } from './ort'
 import { prepareInputs } from './prompt'
 import { chunkText } from './streaming'
@@ -48,13 +48,18 @@ export interface SynthChunk {
 const PATHS = {
   embeddings: 'int4/audio_embeddings_encoder.onnx',
   embeddingsFp32: 'audio_embeddings_encoder.onnx',
-  llm: 'llm_decoder_int4.onnx',
   heads: 'int4/audio_heads_decoder.onnx',
   decoder: 'audio_tokenizer/higgs_decoder.onnx',
   acoustic: 'audio_tokenizer/acoustic_encoder.onnx',
   semantic: 'audio_tokenizer/semantic_encoder.onnx',
   quantizer: 'audio_tokenizer/quantizer_encoder.onnx',
 } as const
+
+const LLM_PATHS: Record<Precision, string> = {
+  int4: 'llm_decoder_int4.onnx',
+  fp16: 'llm_decoder_fp16.onnx',
+  fp32: 'llm_decoder.onnx',
+}
 
 export function estimateFrames(text: string): number {
   return Math.max(48, Math.min(600, Math.round(text.length * 1.7) + 20))
@@ -73,6 +78,7 @@ export class Synthesizer {
   private decoder?: SessionHandle
   private encoders?: EncoderSet
   device: Device = 'wasm'
+  precision: Precision = 'int4'
 
   get loaded(): boolean {
     return Boolean(this.embeddings && this.llm && this.heads && this.decoder)
@@ -82,11 +88,13 @@ export class Synthesizer {
     device: Device,
     profile: Profile = 'lite',
     onProgress?: (progress: SynthProgress) => void,
+    precision: Precision = 'int4',
   ): Promise<void> {
     this.device = device
+    this.precision = precision
     if (this.loaded) return
 
-    const files = filesForDevice(device, profile)
+    const files = filesForDevice(device, profile, precision)
     await ensureCached(files, {
       concurrency: 2,
       onUpdate: (update) =>
@@ -101,7 +109,7 @@ export class Synthesizer {
     // Session creation must be sequential: ORT mounts external data globally.
     const embeddingsPath = device === 'webgpu' ? PATHS.embeddings : PATHS.embeddingsFp32
     this.embeddings = await createCachedSession(embeddingsPath, device)
-    this.llm = await createCachedSession(PATHS.llm, device)
+    this.llm = await createCachedSession(LLM_PATHS[precision], device)
     this.heads = await createCachedSession(PATHS.heads, device)
     this.decoder = await createCachedSession(PATHS.decoder, device)
     await this.warmup()
@@ -111,7 +119,7 @@ export class Synthesizer {
     if (!this.embeddings || !this.llm || !this.heads || !this.decoder) return
     try {
       const step = createBackboneStep(this.embeddings.ort, this.embeddings, this.llm, this.heads, {
-        llmFloat16: PATHS.llm.includes('fp16'),
+        llmFloat16: this.precision === 'fp16',
       })
       await step(new Int32Array(8 * 4).fill(1024), new Uint8Array(4).fill(1), 4, 0, 1)
       await this.decoder.session.run({
@@ -179,7 +187,7 @@ export class Synthesizer {
     })
 
     const step = createBackboneStep(this.embeddings.ort, this.embeddings, this.llm, this.heads, {
-      llmFloat16: PATHS.llm.includes('fp16'),
+      llmFloat16: this.precision === 'fp16',
     })
     onProgress?.({ stage: 'generate', ratio: 0 })
     const codes = await iterativeUnmaskCfg(
