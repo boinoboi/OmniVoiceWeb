@@ -94,17 +94,25 @@ def load_sessions(provider: str = "CPUExecutionProvider", llm_path: str = "int4/
     return s("int4/audio_embeddings_encoder.onnx"), s(llm_path), s("int4/audio_heads_decoder.onnx")
 
 
+NP = {"tensor(float)": np.float32, "tensor(float16)": np.float16, "tensor(int64)": np.int64, "tensor(bool)": bool}
+
+
+def cast_feed(sess, arrays):
+    want = {i.name: i.type for i in sess.get_inputs()}
+    return {k: (v.astype(NP[want[k]]) if k in want else v) for k, v in arrays.items()}
+
+
 def model_forward(emb, llm, heads, input_ids, audio_mask):
-    inputs_embeds = emb.run(["inputs_embeds"], {"input_ids": input_ids, "audio_mask": audio_mask})[0]
+    inputs_embeds = emb.run(["inputs_embeds"], cast_feed(emb, {"input_ids": input_ids, "audio_mask": audio_mask}))[0]
     b, s, _ = inputs_embeds.shape
-    feed = {"inputs_embeds": inputs_embeds.astype(np.float32)}
+    feed = {"inputs_embeds": inputs_embeds}
     for inp in llm.get_inputs():
         if inp.name == "attention_mask":
             feed[inp.name] = np.ones((b, s), dtype=np.int64)
         elif "past" in inp.name:
-            feed[inp.name] = np.zeros((b, 8, 0, 128), dtype=np.float32)
-    hidden = llm.run(["hidden_states"], feed)[0]
-    return heads.run(["logits"], {"hidden_states": hidden.astype(np.float32)})[0]
+            feed[inp.name] = np.zeros((b, 8, 0, 128), dtype=np.float16)
+    hidden = llm.run(["hidden_states"], cast_feed(llm, feed))[0]
+    return heads.run(["logits"], cast_feed(heads, {"hidden_states": hidden}))[0].astype(np.float32)
 
 
 def gumbel(rng, shape):

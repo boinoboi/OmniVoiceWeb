@@ -34,12 +34,15 @@ def main() -> None:
     ap.add_argument("--model", default="k2-fsa/OmniVoice")
     ap.add_argument("--out", default=str(OUT))
     ap.add_argument("--opset", type=int, default=20)
+    ap.add_argument("--dtype", choices=["fp32", "fp16"], default="fp32")
+    ap.add_argument("--name", default="llm_decoder.onnx")
     args = ap.parse_args()
 
     from omnivoice.models.omnivoice import OmniVoice
 
-    print("loading OmniVoice (fp32, cpu)…")
-    model = OmniVoice.from_pretrained(args.model, device_map="cpu", dtype=torch.float32)
+    torch_dtype = torch.float16 if args.dtype == "fp16" else torch.float32
+    print(f"loading OmniVoice ({args.dtype}, cpu)…")
+    model = OmniVoice.from_pretrained(args.model, device_map="cpu", dtype=torch_dtype)
     llm = model.llm
     llm.eval()
     llm.config._attn_implementation = "eager"
@@ -49,9 +52,9 @@ def main() -> None:
 
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
-    onnx_path = outdir / "llm_decoder.onnx"
+    onnx_path = outdir / args.name
 
-    dummy = torch.randn(1, 16, llm.config.hidden_size, dtype=torch.float32)
+    dummy = torch.randn(1, 16, llm.config.hidden_size, dtype=torch_dtype)
 
     class Export(torch.nn.Module):
         def __init__(self, inner):
