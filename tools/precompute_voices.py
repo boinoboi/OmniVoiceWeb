@@ -4,7 +4,7 @@ Encodes one or more reference clips with the Higgs encoders, applying the same p
 runtime (RMS normalise + edge-silence + hop trim), and writes base64 int32 codes.
 
     tools/.venv/bin/python tools/precompute_voices.py \
-        --voice vvv=../refs/VVV8.wav --voice-text vvv=../refs/VVV8.txt \
+        --voice demo=../refs/reference.wav --voice-text demo=../refs/reference.txt \
         --out ../public/voices.json
 """
 

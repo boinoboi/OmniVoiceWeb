@@ -4,7 +4,7 @@ import puppeteer from 'puppeteer-core'
 const url = process.argv[2] ?? 'http://localhost:4173/'
 const executablePath = process.env.CHROME_PATH ?? '/usr/bin/google-chrome-stable'
 const timeoutMs = Number(process.env.E2E_TIMEOUT ?? 1_800_000)
-const refPath = process.env.CLONE_REF ?? 'tools/refs/VVV.wav'
+const refPath = process.env.CLONE_REF ?? 'tools/refs/reference.wav'
 const refText = process.env.CLONE_REF_TEXT_FILE
   ? readFileSync(process.env.CLONE_REF_TEXT_FILE, 'utf8').trim()
   : 'Hello there, this is a short cloned voice test.'

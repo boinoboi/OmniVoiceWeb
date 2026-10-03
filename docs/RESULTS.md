@@ -240,7 +240,7 @@ audio; the reference implementation also marks the **reference-audio** frames
 codes were treated as *text* embeddings. Fix in both `tools/generate_cfg.py` and `engine/prompt.ts`
 (`condMask` from `genStart − refFrames`).
 
-Reference clip: a 23.9 s clean multilingual sample (`tools/refs/VVV.wav`), auto-transcribed for the
+Reference clip: a 23.9 s private multilingual sample (not shipped), auto-transcribed for the
 reference text. Target: a ~130-word educational paragraph.
 
 | run | dur | speech-band | ASR round-trip | WER |
