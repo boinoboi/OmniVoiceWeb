@@ -88,7 +88,13 @@ unmask loop**, 24 kHz. Confirmed ONNX I/O:
 
 Full plan: `docs/PLAN.md`. Differentiation + prior art: `docs/PRIOR_ART.md`.
 Architecture: `docs/ARCHITECTURE.md`. Results so far: `docs/RESULTS.md`.
-Milestones tracked in the todo list.
+Report outline: `docs/REPORT.md`. Milestones tracked in the todo list.
+
+**Done since the milestone:** int4 bidir LLM is the browser default (280 MB, exact ASR);
+idle GPU release (`engine/memory.ts`); eval harness (`tools/evaluate.py` → WER/spectral/RTF,
+`eval/manifest.json` → `eval/results.json`); in-app Results dashboard; TTFA/RTF surfaced; README +
+report outline. **Open:** cloning quality (synthetic refs only), WASM path, stable HF hosting,
+progressive sharding, UTMOS.
 
 **Status (latest, resume here):** **browser parity achieved on a real GPU.** Headful Chrome on the
 3090 running the full in-browser pipeline (CFG + bidirectional fp32 LLM) gives exact ASR for
