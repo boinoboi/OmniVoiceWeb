@@ -4,6 +4,7 @@ import {
   clearModelCache,
   inspectCache,
   isCacheSupported,
+  pruneCache,
   type CacheStatus,
   type DownloadUpdate,
 } from '../engine/cache'
@@ -79,6 +80,11 @@ export function useModelManager() {
     await refresh()
   }, [refresh])
 
+  const prune = useCallback(async () => {
+    await pruneCache(profile)
+    await refresh()
+  }, [profile, refresh])
+
   const allReady = statuses.length > 0 && statuses.every((s) => s.cached)
 
   return {
@@ -91,6 +97,7 @@ export function useModelManager() {
     start,
     cancel,
     clear,
+    prune,
     allReady,
     cacheSupported: isCacheSupported(),
     refresh,

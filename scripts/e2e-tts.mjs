@@ -19,6 +19,7 @@ const browser = await puppeteer.launch({
   executablePath,
   headless: process.env.E2E_HEADFUL !== '1',
   protocolTimeout: timeoutMs + 120_000,
+  userDataDir: process.env.E2E_PROFILE,
   args,
 })
 const page = await browser.newPage()
@@ -47,6 +48,11 @@ const adapter = await page.evaluate(async () => {
   return `${i.vendor ?? '?'} | ${i.architecture ?? '?'} | ${i.description ?? '?'}`
 })
 console.log('webgpu adapter:', adapter)
+if (useGpu && adapter.startsWith('no ')) {
+  console.error('E2E FAILED: requested GPU but no WebGPU adapter is available')
+  await browser.close()
+  process.exit(1)
+}
 
 await page.waitForSelector('.textarea', { timeout: 30_000 })
 await page.click('.textarea')

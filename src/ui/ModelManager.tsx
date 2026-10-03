@@ -119,6 +119,9 @@ export function ModelManager({ gpu, device }: Props) {
             Cancel
           </button>
         )}
+        <button className="btn ghost" onClick={() => void manager.prune()} disabled={downloading}>
+          Remove other models
+        </button>
         <button className="btn ghost" onClick={() => void manager.clear()} disabled={downloading}>
           Clear cache
         </button>

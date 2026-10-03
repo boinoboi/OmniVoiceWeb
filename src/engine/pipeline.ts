@@ -2,6 +2,7 @@ import { iterativeUnmaskCfg } from './algorithm'
 import { concatFloat32 } from './audio'
 import { createBackboneStep } from './backbone'
 import { ensureCached } from './cache'
+import { encodeReference, type EncoderSet, type ReferenceCodes } from './cloning'
 import { estimateTargetTokens } from './duration'
 import { toFloat32 } from './dtype'
 import { filesForProfile, type Profile } from './manifest'
@@ -48,6 +49,9 @@ const PATHS = {
   llm: 'llm_decoder_fp16.onnx',
   heads: 'int4/audio_heads_decoder.onnx',
   decoder: 'audio_tokenizer/higgs_decoder.onnx',
+  acoustic: 'audio_tokenizer/acoustic_encoder.onnx',
+  semantic: 'audio_tokenizer/semantic_encoder.onnx',
+  quantizer: 'audio_tokenizer/quantizer_encoder.onnx',
 } as const
 
 export function estimateFrames(text: string): number {
@@ -65,6 +69,7 @@ export class Synthesizer {
   private llm?: SessionHandle
   private heads?: SessionHandle
   private decoder?: SessionHandle
+  private encoders?: EncoderSet
   device: Device = 'wasm'
 
   get loaded(): boolean {
@@ -96,6 +101,35 @@ export class Synthesizer {
     this.llm = await createCachedSession(PATHS.llm, device)
     this.heads = await createCachedSession(PATHS.heads, device)
     this.decoder = await createCachedSession(PATHS.decoder, device)
+  }
+
+  get cloningReady(): boolean {
+    return Boolean(this.encoders)
+  }
+
+  async loadEncoders(onProgress?: (progress: SynthProgress) => void): Promise<void> {
+    if (this.encoders) return
+    const files = filesForProfile('full').filter((file) => file.kind === 'encoder')
+    await ensureCached(files, {
+      concurrency: 2,
+      onUpdate: (update) =>
+        onProgress?.({
+          stage: 'download',
+          ratio: update.overallTotal ? update.overallLoaded / update.overallTotal : 0,
+          detail: update.file.path,
+        }),
+    })
+    onProgress?.({ stage: 'load', ratio: 0 })
+    this.encoders = {
+      acoustic: await createCachedSession(PATHS.acoustic, this.device),
+      semantic: await createCachedSession(PATHS.semantic, this.device),
+      quantizer: await createCachedSession(PATHS.quantizer, this.device),
+    }
+  }
+
+  async encodeReference(waveform24k: Float32Array): Promise<ReferenceCodes> {
+    if (!this.encoders) throw new Error('Cloning encoders are not loaded')
+    return encodeReference(waveform24k, this.encoders)
   }
 
   async generate(
@@ -198,9 +232,15 @@ export class Synthesizer {
     await releaseSession(this.llm ?? null)
     await releaseSession(this.heads ?? null)
     await releaseSession(this.decoder ?? null)
+    if (this.encoders) {
+      await releaseSession(this.encoders.acoustic)
+      await releaseSession(this.encoders.semantic)
+      await releaseSession(this.encoders.quantizer)
+    }
     this.embeddings = undefined
     this.llm = undefined
     this.heads = undefined
     this.decoder = undefined
+    this.encoders = undefined
   }
 }

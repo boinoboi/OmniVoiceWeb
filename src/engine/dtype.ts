@@ -44,3 +44,11 @@ export function toFloat32(tensor: Tensor): Float32Array {
   }
   throw new Error(`Unsupported tensor type: ${tensor.type}`)
 }
+
+export function toInt32(tensor: Tensor): Int32Array {
+  if (tensor.type === 'int32') return tensor.data as Int32Array
+  const data = tensor.data as ArrayLike<bigint | number>
+  const out = new Int32Array(data.length)
+  for (let i = 0; i < data.length; i++) out[i] = Number(data[i])
+  return out
+}
