@@ -28,6 +28,7 @@ interface AdapterRequestOptions {
   powerPreference?: string
   forceFallbackAdapter?: boolean
   compatibilityMode?: boolean
+  featureLevel?: string
 }
 
 interface GpuLike {
@@ -59,7 +60,7 @@ export async function detectGpu(): Promise<GpuInfo> {
     const adapter =
       (await request()) ??
       (await request({ powerPreference: 'high-performance' })) ??
-      (await request({ compatibilityMode: true })) ??
+      (await request({ featureLevel: 'compatibility' })) ??
       (await request({ forceFallbackAdapter: true }))
     if (adapter) {
       return {

@@ -134,13 +134,16 @@ export async function iterativeUnmaskCfg(
     if (k <= 0) continue
 
     const cLogits = await step(condIds, condMask, condSeq, genStart, target)
-    const uLogits = await step(uncondIds, uncondMask, target, 0, target)
+    const useGuidance = cfg.guidanceScale > 0
+    const uLogits = useGuidance ? await step(uncondIds, uncondMask, target, 0, target) : null
 
     for (let r = 0; r < total; r++) {
       logSoftmaxInto(cLogits, r * AUDIO_VOCAB, clp)
-      logSoftmaxInto(uLogits, r * AUDIO_VOCAB, ulp)
-      for (let v = 0; v < AUDIO_VOCAB; v++) comb[v] = clp[v] + cfg.guidanceScale * (clp[v] - ulp[v])
-      logSoftmaxInto(comb, 0, clp)
+      if (uLogits) {
+        logSoftmaxInto(uLogits, r * AUDIO_VOCAB, ulp)
+        for (let v = 0; v < AUDIO_VOCAB; v++) comb[v] = clp[v] + cfg.guidanceScale * (clp[v] - ulp[v])
+        logSoftmaxInto(comb, 0, clp)
+      }
       clp[AUDIO_MASK_ID] = -Infinity
 
       let best = 0

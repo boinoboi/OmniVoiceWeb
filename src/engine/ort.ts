@@ -18,6 +18,7 @@ interface NavigatorGpuLike {
     powerPreference?: string
     forceFallbackAdapter?: boolean
     compatibilityMode?: boolean
+    featureLevel?: string
   }): Promise<object | null>
 }
 
@@ -32,7 +33,8 @@ export async function ensureWebGpuAdapter(module: OrtModule): Promise<void> {
     ['default', undefined],
     ['high-performance', { powerPreference: 'high-performance' }],
     ['low-power', { powerPreference: 'low-power' }],
-    ['compatibility', { compatibilityMode: true }],
+    ['featureLevel-compat', { featureLevel: 'compatibility' }],
+    ['compatibilityMode-legacy', { compatibilityMode: true }],
     ['fallback', { forceFallbackAdapter: true }],
   ]
   const errors: string[] = []

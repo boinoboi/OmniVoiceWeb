@@ -100,9 +100,11 @@ export function Synthesizer({ device }: { device: Device }) {
 
       {device === 'wasm' && (
         <p className="notice caution">
-          WebGPU isn't available in this browser, so generation runs on the CPU (WASM): it works but
-          is <strong>much slower</strong> and downloads a larger backbone (~700 MB). For fast
-          on-device inference use Chrome or Edge on desktop/Android, or Safari 18+ on iOS.
+          WebGPU isn't available in this browser, so generation runs on the CPU (WASM) in a
+          reduced-quality fast mode (fewer steps, no guidance). If your device supports WebGPU but
+          the app can't get an adapter, Chrome may be blocklisting it — enable{' '}
+          <span className="mono">chrome://flags/#enable-unsafe-webgpu</span> (and{' '}
+          <span className="mono">#ignore-gpu-blocklist</span>), relaunch Chrome, and reload.
         </p>
       )}
 

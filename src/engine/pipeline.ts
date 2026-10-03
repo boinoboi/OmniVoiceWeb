@@ -19,6 +19,7 @@ export interface SynthProgress {
 export interface SynthOptions {
   numSteps?: number
   numAudioTokens?: number
+  guidanceScale?: number
   lang?: string
   instruct?: string
   refText?: string
@@ -163,8 +164,11 @@ export class Synthesizer {
     }
     const start = performance.now()
 
-    const frames = options.numAudioTokens ?? estimateTargetTokens(text)
-    const steps = options.numSteps ?? 32
+    const cpu = this.device === 'wasm'
+    const estimated = options.numAudioTokens ?? estimateTargetTokens(text)
+    const frames = cpu ? Math.min(estimated, 220) : estimated
+    const steps = options.numSteps ?? (cpu ? 12 : 32)
+    const guidanceScale = options.guidanceScale ?? (cpu ? 0 : 2)
 
     onProgress?.({ stage: 'tokenize', ratio: 0 })
     const prepared = await prepareInputs(text, frames, {
@@ -182,7 +186,7 @@ export class Synthesizer {
       prepared,
       frames,
       steps,
-      { guidanceScale: 2, tShift: 0.1, layerPenalty: 5, positionTemperature: 5, seed: 0 },
+      { guidanceScale, tShift: 0.1, layerPenalty: 5, positionTemperature: 5, seed: 0 },
       step,
       (index, remaining) =>
         onProgress?.({
