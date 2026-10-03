@@ -117,7 +117,7 @@ export function useSynthesizer(device: Device) {
           setView((v) => ({ ...v, notice: message.message ?? null }))
         } else if (message.type === 'loaded') {
           pendingRef.current?.resolve('loaded')
-        } else if (message.type === 'result') {
+        } else if (message.type === 'result' || message.type === 'encoded') {
           pendingRef.current?.resolve(message)
         } else if (message.type === 'error') {
           pendingRef.current?.reject(new Error(message.message ?? 'Worker error'))

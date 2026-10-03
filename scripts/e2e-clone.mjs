@@ -11,7 +11,7 @@ const refText = process.env.CLONE_REF_TEXT_FILE
 const text = process.env.CLONE_TEXT ?? 'Hello there, this is a short cloned voice test.'
 const outPath = process.env.CLONE_OUT ?? 'tools/golden/browser_clone.wav'
 
-if (!existsSync(refPath)) throw new Error(`reference not found: ${refPath}`)
+
 
 const browser = await puppeteer.launch({
   executablePath,
@@ -30,8 +30,9 @@ page.on('pageerror', (e) => {
   console.log('PAGEERROR', e.message)
 })
 page.on('console', (m) => {
-  if (m.type() !== 'error') return
   const t = m.text()
+  if (t.includes('[timing]')) console.log(t)
+  if (m.type() !== 'error') return
   if (!BENIGN.some((n) => t.includes(n))) console.log('CONSOLE ERR', t)
 })
 
@@ -71,6 +72,7 @@ if (process.env.CLONE_VOICE) {
   }, process.env.CLONE_VOICE)
   if (!clicked) throw new Error(`voice chip "${process.env.CLONE_VOICE}" not found`)
 } else {
+  if (!existsSync(refPath)) throw new Error(`reference not found: ${refPath}`)
   console.log('typing transcript + uploading reference', refPath)
   await page.click('.cloner input.textarea')
   await page.type('.cloner input.textarea', refText)

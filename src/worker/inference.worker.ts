@@ -94,9 +94,7 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
         [result.samples.buffer],
       )
     } else if (message.type === 'encode') {
-      if (!synth.loaded) await synth.load(message.device, 'lite', progress)
-      progress({ stage: 'load', ratio: 0, detail: 'loading cloning encoders' })
-      await synth.loadEncoders(progress)
+      await synth.loadEncoders(progress, message.device)
       progress({ stage: 'clone', ratio: 0, detail: 'encoding reference audio' })
       const reference = await synth.encodeReference(message.samples)
       scope.postMessage(

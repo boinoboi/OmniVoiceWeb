@@ -256,18 +256,20 @@ runtime bug.
 
 Two paths, both validated in the browser on the real GPU:
 
-| path | mechanism | can_seconds | ASR (target "…short cloned voice test.") | WER |
-|---|---|---|---|---|
-| precomputed voice | `tools/precompute_voices.py` → `public/voices.json`, loaded instantly | 2.76 s | "…a short clone voice test." | 0.11 |
-| in-browser encode | `engine/cloning.ts` on an uploaded clip | — | — | — |
+| path | mechanism | encode | output | ASR | WER |
+|---|---|---|---|---|---|
+| precomputed voice | `tools/precompute_voices.py` → `public/voices.json` | instant | 2.84 s | exact | 0.00 |
+| in-browser encode | uploaded clip → `engine/cloning.ts` | **~1.3 s** | 2.84 s | exact | 0.00 |
 
-- **Precomputed voices are the practical path** (prior art): codes are computed offline once and
-  shipped, so the browser needs no Higgs encoders and cloning is instant.
-- **In-browser encode of a fresh upload works but is slow** with ORT-web WebGPU — the 654 MB Higgs
-  encoders took >4 min for an 8 s clip in our tests (many ops fall back off the GPU). It stays as a
-  fallback for custom voices; live encode needs optimization (or int8 encoders) to be pleasant.
+- Both paths reproduce the target exactly in-browser. Encode of an 8.4 s clip is **~1.3 s** on the
+  3090 (acoustic 70 ms, semantic 160 ms, quantizer 30 ms; session creation <1 s).
+- **The earlier ">4 min" encode was a UI bug, not speed**: `useSynthesizer` never handled the
+  worker's `encoded` reply, so the promise hung after the encoder had already finished. Fixed.
+- Optimisation: cloning-first users no longer download/load the 280 MB backbone — the encode path
+  loads only the Higgs encoders.
 - Uploaded references are decoded entirely client-side (WebAudio + `OfflineAudioContext`), so any
-  format (WAV/MP3/OGG/Opus/M4A/FLAC) works and nothing is uploaded.
+  format (WAV/MP3/OGG/Opus/M4A/FLAC) works and nothing is uploaded. `public/voices.json` ships one
+  **synthetic demo voice we generated ourselves** (no third-party voice).
 
 ## Export defects found
 

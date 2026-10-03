@@ -107,8 +107,9 @@ export class Synthesizer {
     return Boolean(this.encoders)
   }
 
-  async loadEncoders(onProgress?: (progress: SynthProgress) => void): Promise<void> {
+  async loadEncoders(onProgress?: (progress: SynthProgress) => void, device?: Device): Promise<void> {
     if (this.encoders) return
+    if (device) this.device = device
     const files = filesForProfile('full').filter((file) => file.kind === 'encoder')
     await ensureCached(files, {
       concurrency: 2,
@@ -119,12 +120,13 @@ export class Synthesizer {
           detail: update.file.path,
         }),
     })
-    onProgress?.({ stage: 'load', ratio: 0, detail: 'acoustic encoder' })
-    const acoustic = await createCachedSession(PATHS.acoustic, this.device)
-    onProgress?.({ stage: 'load', ratio: 0, detail: 'semantic encoder' })
-    const semantic = await createCachedSession(PATHS.semantic, this.device)
-    onProgress?.({ stage: 'load', ratio: 0, detail: 'quantizer encoder' })
-    const quantizer = await createCachedSession(PATHS.quantizer, this.device)
+    const loadOne = async (name: string, path: string): Promise<SessionHandle> => {
+      onProgress?.({ stage: 'load', ratio: 0, detail: `${name} encoder` })
+      return createCachedSession(path, this.device)
+    }
+    const acoustic = await loadOne('acoustic', PATHS.acoustic)
+    const semantic = await loadOne('semantic', PATHS.semantic)
+    const quantizer = await loadOne('quantizer', PATHS.quantizer)
     this.encoders = { acoustic, semantic, quantizer }
   }
 
