@@ -39,6 +39,8 @@ const progress = (p: SynthProgress) => scope.postMessage({ type: 'progress', pro
 
 scope.onmessage = async (event: MessageEvent<Incoming>) => {
   const message = event.data
+  const isWork = message.type === 'load' || message.type === 'generate' || message.type === 'encode'
+  if (isWork) idle.cancel()
   try {
     if (message.type === 'load') {
       try {
@@ -56,10 +58,8 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
           throw error
         }
       }
-      idle.touch()
       scope.postMessage({ type: 'loaded', device: synth.device })
     } else if (message.type === 'generate') {
-      idle.touch()
       const result = await synth.generateStream(
         message.text,
         {
@@ -94,7 +94,6 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
         [result.samples.buffer],
       )
     } else if (message.type === 'encode') {
-      idle.touch()
       if (!synth.loaded) await synth.load(message.device, 'lite', progress)
       await synth.loadEncoders(progress)
       const reference = await synth.encodeReference(message.samples)
@@ -110,5 +109,7 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
       type: 'error',
       message: error instanceof Error ? error.message : String(error),
     })
+  } finally {
+    if (isWork) idle.touch()
   }
 }
