@@ -459,6 +459,55 @@ body {
   margin-top: 14px;
 }
 
+.results {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.results th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.results td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.results tr.highlight td {
+  background: rgba(70, 211, 154, 0.08);
+}
+
+.cloner {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.cloner summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.cloner .textarea {
+  margin-top: 10px;
+}
+
+.consent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 .footer {
   margin-top: 28px;
   text-align: center;

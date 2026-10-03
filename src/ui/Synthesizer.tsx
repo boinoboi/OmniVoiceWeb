@@ -160,8 +160,10 @@ export function Synthesizer({ device }: { device: Device }) {
       {view.phase === 'ready' && (
         <p className="muted small">
           Generated {view.frames} frames in {(view.milliseconds / 1000).toFixed(1)}s on {device}.
+          {view.ttfa !== null && ` TTFA ${view.ttfa.toFixed(1)}s.`}
+          {view.rtf !== null && ` RTF ${view.rtf.toFixed(2)}.`}
           {view.metrics &&
-            ` Speech band ${(view.metrics.speechBand * 100).toFixed(0)}% · centroid ${view.metrics.centroidHz.toFixed(0)} Hz · rms ${view.metrics.rms.toFixed(2)}.`}{' '}
+            ` Speech band ${(view.metrics.speechBand * 100).toFixed(0)}% · centroid ${view.metrics.centroidHz.toFixed(0)} Hz.`}{' '}
           Audio never left your device.
         </p>
       )}

@@ -2,6 +2,7 @@ import { SystemCheck } from './ui/SystemCheck'
 import { ModelManager } from './ui/ModelManager'
 import { EngineLab } from './ui/EngineLab'
 import { Synthesizer } from './ui/Synthesizer'
+import { Dashboard } from './ui/Dashboard'
 import { useCapabilities } from './ui/useCapabilities'
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
         <SystemCheck gpu={gpu} device={device} storage={storage} />
         <ModelManager gpu={gpu} device={device} />
         <EngineLab gpu={gpu} />
+        <Dashboard />
         <Synthesizer device={gpu?.available ? 'webgpu' : 'wasm'} />
       </main>
 

@@ -23,6 +23,8 @@ export interface SynthView {
   error: string | null
   notice: string | null
   metrics: AudioMetrics | null
+  ttfa: number | null
+  rtf: number | null
 }
 
 const initial: SynthView = {
@@ -36,6 +38,8 @@ const initial: SynthView = {
   error: null,
   notice: null,
   metrics: null,
+  ttfa: null,
+  rtf: null,
 }
 
 interface WorkerMessage {
@@ -61,6 +65,7 @@ export function useSynthesizer(device: Device) {
   const pendingRef = useRef<Pending | null>(null)
   const urlRef = useRef<string | null>(null)
   const chunksRef = useRef<Float32Array[]>([])
+  const startedRef = useRef(0)
   const referenceRef = useRef<VoiceReference | null>(null)
   const [reference, setReferenceState] = useState<VoiceReference | null>(null)
   const [view, setView] = useState<SynthView>(initial)
@@ -100,6 +105,7 @@ export function useSynthesizer(device: Device) {
             phase: 'generating',
             audioUrl: url,
             frames: v.frames + (message.frames ?? 0),
+            ttfa: v.ttfa ?? (performance.now() - startedRef.current) / 1000,
             detail:
               message.index !== undefined && message.total !== undefined
                 ? `part ${message.index + 1}/${message.total}`
@@ -135,7 +141,17 @@ export function useSynthesizer(device: Device) {
     async (text: string) => {
       if (!text.trim()) return
       chunksRef.current = []
-      setView((v) => ({ ...v, phase: 'loading', error: null, notice: null, ratio: 0, detail: '' }))
+      startedRef.current = performance.now()
+      setView((v) => ({
+        ...v,
+        phase: 'loading',
+        error: null,
+        notice: null,
+        ratio: 0,
+        detail: '',
+        ttfa: null,
+        rtf: null,
+      }))
       try {
         await send({ type: 'load', device })
         setView((v) => ({ ...v, phase: 'generating', stage: 'generate', ratio: 0, detail: '' }))
@@ -151,14 +167,18 @@ export function useSynthesizer(device: Device) {
         if (!samples || samples.length === 0) throw new Error('No audio returned')
         const rate = result.sampleRate ?? 24000
         const url = publish([samples], rate)
+        const metrics = analyzeAudio(samples, rate)
+        const milliseconds = result.milliseconds ?? 0
         setView((v) => ({
           ...v,
           phase: 'ready',
           audioUrl: url,
           frames: result.frames ?? v.frames,
-          milliseconds: result.milliseconds ?? 0,
+          milliseconds,
           ratio: 1,
-          metrics: analyzeAudio(samples, rate),
+          metrics,
+          ttfa: v.ttfa ?? (performance.now() - startedRef.current) / 1000,
+          rtf: metrics.durationMs > 0 ? milliseconds / metrics.durationMs : null,
         }))
       } catch (error) {
         setView((v) => ({
