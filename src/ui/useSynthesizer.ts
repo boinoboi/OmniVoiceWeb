@@ -8,6 +8,7 @@ export type SynthPhase = 'idle' | 'loading' | 'ready' | 'generating' | 'error'
 export interface VoiceReference {
   data: Int32Array
   frames: number
+  rms: number
   text?: string
   name?: string
 }
@@ -53,6 +54,7 @@ interface WorkerMessage {
   index?: number
   total?: number
   codes?: Int32Array
+  rms?: number
 }
 
 interface Pending {
@@ -161,6 +163,7 @@ export function useSynthesizer(device: Device) {
           text,
           refCodes: ref?.data,
           refFrames: ref?.frames,
+          refRms: ref?.rms,
           refText: ref?.text,
         })) as WorkerMessage
         const samples = result.samples ?? concatFloat32(chunksRef.current)
@@ -207,6 +210,7 @@ export function useSynthesizer(device: Device) {
         const ref: VoiceReference = {
           data: result.codes,
           frames: result.frames ?? 0,
+          rms: result.rms ?? 1,
           text: text?.trim() || undefined,
           name,
         }

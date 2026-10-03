@@ -29,6 +29,7 @@ type Incoming =
       maxChars?: number
       refCodes?: Int32Array
       refFrames?: number
+      refRms?: number
       refText?: string
     }
   | { type: 'encode'; samples: Float32Array; device: Device }
@@ -68,7 +69,7 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
           refText: message.refText,
           refCodes:
             message.refCodes && message.refFrames
-              ? { data: message.refCodes, frames: message.refFrames }
+              ? { data: message.refCodes, frames: message.refFrames, rms: message.refRms }
               : undefined,
         },
         progress,
@@ -98,7 +99,7 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
       await synth.loadEncoders(progress)
       const reference = await synth.encodeReference(message.samples)
       scope.postMessage(
-        { type: 'encoded', codes: reference.data, frames: reference.frames },
+        { type: 'encoded', codes: reference.data, frames: reference.frames, rms: reference.rms },
         [reference.data.buffer],
       )
     } else if (message.type === 'dispose') {

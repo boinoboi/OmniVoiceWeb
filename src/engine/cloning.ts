@@ -2,9 +2,48 @@ import { resample } from './audio'
 import { toFloat32, toInt32 } from './dtype'
 import { ort, type SessionHandle } from './ort'
 
+export const HOP_LENGTH = 960
+export const MIN_REF_RMS = 0.1
+
 export interface ReferenceCodes {
   data: Int32Array
   frames: number
+  rms: number
+}
+
+export function computeRms(samples: Float32Array): number {
+  let sumSq = 0
+  for (let i = 0; i < samples.length; i++) sumSq += samples[i] * samples[i]
+  return samples.length ? Math.sqrt(sumSq / samples.length) : 0
+}
+
+export function normalizeReference(samples: Float32Array, minRms = MIN_REF_RMS): Float32Array {
+  const rms = computeRms(samples)
+  if (rms <= 0 || rms >= minRms) return samples
+  const gain = minRms / rms
+  const out = new Float32Array(samples.length)
+  for (let i = 0; i < samples.length; i++) out[i] = samples[i] * gain
+  return out
+}
+
+export function trimToHop(samples: Float32Array, hop = HOP_LENGTH): Float32Array {
+  const usable = samples.length - (samples.length % hop)
+  return usable > 0 ? samples.subarray(0, usable) : samples
+}
+
+export function trimEdgeSilence(
+  samples: Float32Array,
+  threshold = 0.01,
+): Float32Array {
+  let peak = 0
+  for (let i = 0; i < samples.length; i++) peak = Math.max(peak, Math.abs(samples[i]))
+  if (peak <= 0) return samples
+  const level = threshold * peak
+  let start = 0
+  while (start < samples.length && Math.abs(samples[start]) < level) start++
+  let end = samples.length
+  while (end > start && Math.abs(samples[end - 1]) < level) end--
+  return start === 0 && end === samples.length ? samples : samples.subarray(start, end)
 }
 
 export interface EncoderSet {
@@ -28,9 +67,12 @@ export function sliceFeatureFrames(
 }
 
 export async function encodeReference(
-  waveform24k: Float32Array,
+  input: Float32Array,
   encoders: EncoderSet,
 ): Promise<ReferenceCodes> {
+  const normalized = normalizeReference(input)
+  const rms = computeRms(normalized)
+  const waveform24k = trimToHop(trimEdgeSilence(normalized))
   const waveform16k = resample(waveform24k, 24000, 16000)
 
   const acoustic = await encoders.acoustic.session.run({
@@ -52,5 +94,5 @@ export async function encodeReference(
   })
 
   const codes = quantized.codes
-  return { data: toInt32(codes), frames: codes.dims[codes.dims.length - 1] }
+  return { data: toInt32(codes), frames: codes.dims[codes.dims.length - 1], rms }
 }

@@ -38,4 +38,6 @@ tools/.build
 tools/golden/generation_s*.bin
 tools/golden/generation_s*.json
 tools/.venv-ref
+tools/.venv-quant
+tools/refs
 tools/golden/*.wav

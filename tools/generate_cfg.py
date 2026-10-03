@@ -218,7 +218,20 @@ def main():
         if sr != 24000:
             g = gcd(24000, sr)
             wav24 = resample_poly(wav24, 24000 // g, sr // g).astype(np.float32)
-        wav16 = resample_poly(wav24, 16000 // 24000 if False else 2, 3).astype(np.float32)
+        # match the reference prompt preprocessing: rms-normalize + trim edge silence + hop-align
+        ref_rms = float(np.sqrt(np.mean(wav24**2)))
+        if 0 < ref_rms < 0.1:
+            wav24 = wav24 * (0.1 / ref_rms)
+        peak = float(np.abs(wav24).max()) if wav24.size else 0.0
+        if peak > 0:
+            above = np.where(np.abs(wav24) >= 0.01 * peak)[0]
+            if above.size:
+                wav24 = wav24[above[0] : above[-1] + 1]
+        hop = 960
+        usable = (wav24.shape[0] // hop) * hop
+        if usable > 0:
+            wav24 = wav24[:usable]
+        wav16 = resample_poly(wav24, 2, 3).astype(np.float32)
         ac = hsess("acoustic_encoder.onnx")
         se = hsess("semantic_encoder.onnx")
         qe = hsess("quantizer_encoder.onnx")

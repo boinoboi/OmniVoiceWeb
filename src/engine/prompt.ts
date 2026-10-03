@@ -6,6 +6,7 @@ export const NUM_CODEBOOKS = 8
 export interface ReferenceCodes {
   data: Int32Array
   frames: number
+  rms?: number
 }
 
 export interface PromptOptions {

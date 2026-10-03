@@ -22,7 +22,7 @@ export interface SynthOptions {
   lang?: string
   instruct?: string
   refText?: string
-  refCodes?: { data: Int32Array; frames: number }
+  refCodes?: { data: Int32Array; frames: number; rms?: number }
   maxChars?: number
 }
 
@@ -175,6 +175,12 @@ export class Synthesizer {
     const codesTensor = new ort.Tensor('int64', toBigInt64(codes), [8, 1, frames])
     const output = await this.decoder.session.run({ codes: codesTensor })
     const samples = toFloat32(output.waveform_24k)
+
+    const refRms = options.refCodes?.rms
+    if (refRms !== undefined && refRms < 0.1) {
+      const gain = refRms / 0.1
+      for (let i = 0; i < samples.length; i++) samples[i] *= gain
+    }
 
     onProgress?.({ stage: 'done', ratio: 1 })
     return {
