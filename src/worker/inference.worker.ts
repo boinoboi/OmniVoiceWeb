@@ -1,7 +1,7 @@
 import { IdleReleaser } from '../engine/memory'
 import type { Precision } from '../engine/manifest'
 import { Synthesizer, type SynthProgress } from '../engine/pipeline'
-import type { Device } from '../engine/ort'
+import { getAdapterStrategy, type Device } from '../engine/ort'
 
 interface WorkerScope {
   postMessage(message: unknown, transfer?: Transferable[]): void
@@ -21,7 +21,7 @@ const idle = new IdleReleaser({
 })
 
 type Incoming =
-  | { type: 'load'; device: Device; precision?: Precision }
+  | { type: 'load'; device: Device; precision?: Precision; safeDecoder?: boolean }
   | {
       type: 'generate'
       text: string
@@ -45,11 +45,17 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
   try {
     if (message.type === 'load') {
       const precision: Precision = message.precision ?? 'int4'
-      if (synth.loaded && (synth.device !== message.device || synth.precision !== precision)) {
+      const safeDecoder = message.safeDecoder ?? false
+      if (
+        synth.loaded &&
+        (synth.device !== message.device ||
+          synth.precision !== precision ||
+          synth.safeDecoder !== safeDecoder)
+      ) {
         await synth.dispose()
       }
       try {
-        await synth.load(message.device, 'lite', progress, precision)
+        await synth.load(message.device, 'lite', progress, precision, safeDecoder)
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error)
         if (message.device !== 'wasm') {
@@ -62,6 +68,9 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
         } else {
           throw error
         }
+      }
+      if (synth.device === 'webgpu') {
+        scope.postMessage({ type: 'notice', message: `WebGPU adapter: ${getAdapterStrategy() ?? 'default'}` })
       }
       scope.postMessage({ type: 'loaded', device: synth.device })
     } else if (message.type === 'generate') {

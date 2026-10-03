@@ -37,8 +37,9 @@ async function decodeToMono(file: File): Promise<{ samples: Float32Array; second
 export function Synthesizer({ device }: { device: Device }) {
   const [text, setText] = useState(EXAMPLES[1])
   const [precision, setPrecision] = useState<Precision>('int4')
+  const [safeDecoder, setSafeDecoder] = useState(false)
   const { view, generate, encodeReference, setReference, reference, clearReference } =
-    useSynthesizer(device, precision)
+    useSynthesizer(device, precision, safeDecoder)
   const [refText, setRefText] = useState('')
   const [refStatus, setRefStatus] = useState<string | null>(null)
   const [consented, setConsented] = useState(false)
@@ -150,6 +151,14 @@ export function Synthesizer({ device }: { device: Device }) {
           <option value="fp16">Backbone: fp16</option>
           <option value="fp32">Backbone: fp32 (accurate)</option>
         </select>
+        <label className="consent">
+          <input
+            type="checkbox"
+            checked={safeDecoder}
+            onChange={(e) => setSafeDecoder(e.target.checked)}
+          />
+          <span>Audio decoder on CPU (fixes blank audio)</span>
+        </label>
       </div>
       {view.metrics && view.metrics.rms < 0.005 && (
         <p className="notice warn">

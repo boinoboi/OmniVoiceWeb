@@ -38,9 +38,10 @@ const bidir = (
 export const MODEL_FILES: ModelFile[] = [
   file('int4/audio_embeddings_encoder.onnx', 2363, 'backbone', 'lite', ['webgpu']),
   file('int4/audio_embeddings_encoder.onnx.data', 87160832, 'backbone', 'lite', ['webgpu']),
-  file('audio_embeddings_encoder.onnx', 2172, 'backbone', 'lite', ['wasm']),
-  file('audio_embeddings_encoder.onnx.data', 327426048, 'backbone', 'lite', ['wasm']),
+  file('audio_embeddings_encoder.onnx', 2172, 'backbone'),
+  file('audio_embeddings_encoder.onnx.data', 327426048, 'backbone'),
   file('int4/audio_heads_decoder.onnx', 4462676, 'backbone'),
+  file('audio_heads_decoder.onnx', 16795584, 'backbone'),
   bidir('llm_decoder_int4.onnx', 4022710, 'backbone', 'lite', 'int4'),
   bidir('llm_decoder_int4.onnx.data', 275484672, 'backbone', 'lite', 'int4'),
   bidir('llm_decoder_fp16.onnx', 4885288, 'backbone', 'lite', 'fp16'),
@@ -70,12 +71,23 @@ export const filesForDevice = (
   backend: Backend,
   profile: Profile,
   precision: Precision = 'int4',
-): ModelFile[] =>
-  filesForProfile(profile).filter(
-    (f) =>
-      (!f.backends || f.backends.includes(backend)) &&
-      (!f.precision || f.precision === precision),
-  )
+): ModelFile[] => {
+  const int4Embeddings = backend === 'webgpu' && precision === 'int4'
+  const int4Heads = precision === 'int4'
+  return filesForProfile(profile).filter((f) => {
+    if (f.backends && !f.backends.includes(backend)) return false
+    if (f.path.includes('audio_embeddings_encoder')) {
+      return f.path.startsWith('int4/') ? int4Embeddings : !int4Embeddings
+    }
+    if (f.path.includes('audio_heads_decoder')) {
+      return f.path.startsWith('int4/') ? int4Heads : !int4Heads
+    }
+    if (f.path.includes('llm_decoder')) {
+      return !f.precision || f.precision === precision
+    }
+    return true
+  })
+}
 
 export const bytesForProfile = (profile: Profile): number =>
   filesForProfile(profile).reduce((total, f) => total + f.bytes, 0)

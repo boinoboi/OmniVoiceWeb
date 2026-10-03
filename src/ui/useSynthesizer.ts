@@ -63,7 +63,11 @@ interface Pending {
   reject: (error: Error) => void
 }
 
-export function useSynthesizer(device: Device, precision: Precision = 'int4') {
+export function useSynthesizer(
+  device: Device,
+  precision: Precision = 'int4',
+  safeDecoder = false,
+) {
   const workerRef = useRef<Worker | null>(null)
   const pendingRef = useRef<Pending | null>(null)
   const urlRef = useRef<string | null>(null)
@@ -186,7 +190,7 @@ export function useSynthesizer(device: Device, precision: Precision = 'int4') {
         rtf: null,
       }))
       try {
-        await send({ type: 'load', device, precision })
+        await send({ type: 'load', device, precision, safeDecoder })
         setView((v) => ({ ...v, phase: 'generating', stage: 'generate', ratio: 0, detail: '' }))
         const ref = referenceRef.current
         const result = (await send({
@@ -223,7 +227,7 @@ export function useSynthesizer(device: Device, precision: Precision = 'int4') {
         }))
       }
     },
-    [device, precision, send, publish, armWatchdog, clearWatchdog],
+    [device, precision, safeDecoder, send, publish, armWatchdog, clearWatchdog],
   )
 
   const encodeReference = useCallback(

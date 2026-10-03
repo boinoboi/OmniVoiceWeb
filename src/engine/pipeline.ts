@@ -49,6 +49,7 @@ const PATHS = {
   embeddings: 'int4/audio_embeddings_encoder.onnx',
   embeddingsFp32: 'audio_embeddings_encoder.onnx',
   heads: 'int4/audio_heads_decoder.onnx',
+  headsFp32: 'audio_heads_decoder.onnx',
   decoder: 'audio_tokenizer/higgs_decoder.onnx',
   acoustic: 'audio_tokenizer/acoustic_encoder.onnx',
   semantic: 'audio_tokenizer/semantic_encoder.onnx',
@@ -79,6 +80,7 @@ export class Synthesizer {
   private encoders?: EncoderSet
   device: Device = 'wasm'
   precision: Precision = 'int4'
+  safeDecoder = false
 
   get loaded(): boolean {
     return Boolean(this.embeddings && this.llm && this.heads && this.decoder)
@@ -89,9 +91,11 @@ export class Synthesizer {
     profile: Profile = 'lite',
     onProgress?: (progress: SynthProgress) => void,
     precision: Precision = 'int4',
+    safeDecoder = false,
   ): Promise<void> {
     this.device = device
     this.precision = precision
+    this.safeDecoder = safeDecoder
     if (this.loaded) return
 
     const files = filesForDevice(device, profile, precision)
@@ -107,11 +111,15 @@ export class Synthesizer {
 
     onProgress?.({ stage: 'load', ratio: 0 })
     // Session creation must be sequential: ORT mounts external data globally.
-    const embeddingsPath = device === 'webgpu' ? PATHS.embeddings : PATHS.embeddingsFp32
+    const int4 = precision === 'int4'
+    const embeddingsPath = device === 'webgpu' && int4 ? PATHS.embeddings : PATHS.embeddingsFp32
+    const headsPath = int4 ? PATHS.heads : PATHS.headsFp32
     this.embeddings = await createCachedSession(embeddingsPath, device)
     this.llm = await createCachedSession(LLM_PATHS[precision], device)
-    this.heads = await createCachedSession(PATHS.heads, device)
-    this.decoder = await createCachedSession(PATHS.decoder, device)
+    this.heads = await createCachedSession(headsPath, device)
+    const decoderDevice = safeDecoder && device === 'webgpu' ? 'wasm' : device
+    onProgress?.({ stage: 'load', ratio: 0, detail: 'audio decoder' })
+    this.decoder = await createCachedSession(PATHS.decoder, decoderDevice)
     await this.warmup()
   }
 
@@ -123,7 +131,7 @@ export class Synthesizer {
       })
       await step(new Int32Array(8 * 4).fill(1024), new Uint8Array(4).fill(1), 4, 0, 1)
       await this.decoder.session.run({
-        codes: new this.embeddings.ort.Tensor('int64', new BigInt64Array(8 * 2), [8, 1, 2]),
+        codes: new this.decoder.ort.Tensor('int64', new BigInt64Array(8 * 2), [8, 1, 2]),
       })
     } catch {
       void 0
@@ -205,7 +213,7 @@ export class Synthesizer {
     )
 
     onProgress?.({ stage: 'decode', ratio: 0 })
-    const codesTensor = new this.embeddings.ort.Tensor('int64', toBigInt64(codes), [8, 1, frames])
+    const codesTensor = new this.decoder.ort.Tensor('int64', toBigInt64(codes), [8, 1, frames])
     const output = await this.decoder.session.run({ codes: codesTensor })
     const samples = toFloat32(output.waveform_24k)
 

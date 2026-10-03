@@ -6,6 +6,9 @@ export type OrtModule = typeof ortWebgpu
 
 const configured = new WeakSet<object>()
 let wasmModule: OrtModule | undefined
+let adapterStrategy: string | null = null
+
+export const getAdapterStrategy = (): string | null => adapterStrategy
 
 export async function moduleFor(device: Device): Promise<OrtModule> {
   if (device === 'webgpu') return ortWebgpu
@@ -44,6 +47,7 @@ export async function ensureWebGpuAdapter(module: OrtModule): Promise<void> {
         const adapter = await gpu.requestAdapter(options)
         if (adapter) {
           env.webgpu.adapter = adapter
+          adapterStrategy = name
           return
         }
       } catch (error) {
