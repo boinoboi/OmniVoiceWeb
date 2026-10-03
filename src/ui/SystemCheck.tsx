@@ -1,6 +1,7 @@
 import type { DeviceInfo, DeviceTier, GpuInfo } from '../engine/capabilities'
 import type { StorageEstimate } from '../engine/cache'
 import { formatBytes } from '../engine/manifest'
+import { GpuHelp } from './GpuHelp'
 
 interface Props {
   gpu: GpuInfo | null
@@ -46,8 +47,8 @@ export function SystemCheck({ gpu, device, tier, storage }: Props) {
         </div>
         <div className="stat">
           <span className="stat-label">Device</span>
-          <span className="stat-value">
-            {deviceLabel}
+          <span className="stat-value" style={{ textTransform: 'capitalize' }}>
+            {device.browser} · {deviceLabel}
             {device.cores ? ` · ${device.cores} cores` : ''}
             {device.memoryGB ? ` · ~${device.memoryGB} GB` : ''}
           </span>
@@ -68,12 +69,10 @@ export function SystemCheck({ gpu, device, tier, storage }: Props) {
       {gpu && !gpu.available && (
         <p className="notice caution">
           {gpu.error}
-          {gpu.renderer ? ` GPU renderer: ${gpu.renderer}.` : ''}
-          {gpu.navigatorGpu
-            ? ' Chrome only enables WebGPU by default for Qualcomm and ARM GPUs — AMD/Exynos Xclipse (and others) must be force-enabled: open chrome://flags/#enable-unsafe-webgpu and chrome://flags/#ignore-gpu-blocklist, set both Enabled, relaunch Chrome. If that fails, try Chrome Canary.'
-            : ' Update to Chrome 121+ (Android 12+) or Safari 18+.'}
+          {gpu.renderer ? ` GPU: ${gpu.renderer}.` : ''}
         </p>
       )}
+      <GpuHelp browser={device.browser} />
     </section>
   )
 }

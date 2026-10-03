@@ -101,6 +101,15 @@ export async function detectGpu(): Promise<GpuInfo> {
   }
 }
 
+export type BrowserName =
+  | 'chrome'
+  | 'edge'
+  | 'opera'
+  | 'samsung'
+  | 'firefox'
+  | 'safari'
+  | 'other'
+
 export interface DeviceInfo {
   mobile: boolean
   ios: boolean
@@ -109,11 +118,31 @@ export interface DeviceInfo {
   cores?: number
   memoryGB?: number
   platform: string
+  browser: BrowserName
+}
+
+export function detectBrowser(): BrowserName {
+  if (typeof navigator === 'undefined') return 'other'
+  const ua = navigator.userAgent
+  if (/Edg\//.test(ua)) return 'edge'
+  if (/OPR\/|Opera/.test(ua)) return 'opera'
+  if (/SamsungBrowser/.test(ua)) return 'samsung'
+  if (/Firefox\/|FxiOS/.test(ua)) return 'firefox'
+  if (/CriOS|Chrome\/|Chromium/.test(ua)) return 'chrome'
+  if (/Safari\//.test(ua)) return 'safari'
+  return 'other'
 }
 
 export function detectDevice(): DeviceInfo {
   if (typeof navigator === 'undefined') {
-    return { mobile: false, ios: false, android: false, touch: false, platform: 'unknown' }
+    return {
+      mobile: false,
+      ios: false,
+      android: false,
+      touch: false,
+      platform: 'unknown',
+      browser: 'other',
+    }
   }
   const ua = navigator.userAgent
   const maxTouch = navigator.maxTouchPoints ?? 0
@@ -131,6 +160,7 @@ export function detectDevice(): DeviceInfo {
     cores: navigator.hardwareConcurrency,
     memoryGB: nav.deviceMemory,
     platform: navigator.platform || 'unknown',
+    browser: detectBrowser(),
   }
 }
 
