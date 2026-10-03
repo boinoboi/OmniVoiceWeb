@@ -1,5 +1,6 @@
 import { SystemCheck } from './ui/SystemCheck'
 import { ModelManager } from './ui/ModelManager'
+import { EngineLab } from './ui/EngineLab'
 import { Synthesizer } from './ui/Synthesizer'
 import { useCapabilities } from './ui/useCapabilities'
 
@@ -37,6 +38,7 @@ export default function App() {
       <main className="grid">
         <SystemCheck gpu={gpu} device={device} storage={storage} />
         <ModelManager gpu={gpu} device={device} />
+        <EngineLab gpu={gpu} />
         <Synthesizer ready={false} />
       </main>
 

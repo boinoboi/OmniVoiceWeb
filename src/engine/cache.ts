@@ -88,7 +88,10 @@ export class ModelDownloader {
   }
 
   async run(profile: Profile): Promise<void> {
-    const files = filesForProfile(profile)
+    await this.runFiles(filesForProfile(profile))
+  }
+
+  async runFiles(files: ModelFile[]): Promise<void> {
     const total = files.reduce((sum, f) => sum + f.bytes, 0)
     const concurrency = Math.max(1, this.options.concurrency ?? 2)
     let cursor = 0
@@ -193,6 +196,13 @@ export class ModelDownloader {
       phase: 'file-done',
     })
   }
+}
+
+export async function ensureCached(
+  files: ModelFile[],
+  options: DownloadOptions = {},
+): Promise<void> {
+  await new ModelDownloader(options).runFiles(files)
 }
 
 export interface StorageEstimate {
