@@ -46,7 +46,7 @@ export interface SynthChunk {
 
 const PATHS = {
   embeddings: 'int4/audio_embeddings_encoder.onnx',
-  llm: 'llm_decoder_fp16.onnx',
+  llm: 'llm_decoder.onnx',
   heads: 'int4/audio_heads_decoder.onnx',
   decoder: 'audio_tokenizer/higgs_decoder.onnx',
   acoustic: 'audio_tokenizer/acoustic_encoder.onnx',
