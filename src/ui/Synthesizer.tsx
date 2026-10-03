@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react'
-import { resample } from '../engine/audio'
 import { useSynthesizer } from './useSynthesizer'
 import type { Device } from '../engine/ort'
+
+const TARGET_RATE = 24000
+const MAX_REFERENCE_SECONDS = 30
 
 const EXAMPLES = [
   'Hola, how are you doing today? 你今天怎么样？',
@@ -9,18 +11,20 @@ const EXAMPLES = [
   'Bonjour, je vais bien — thanks for asking.',
 ]
 
-async function decodeToMono(file: File): Promise<Float32Array> {
+async function decodeToMono(file: File): Promise<{ samples: Float32Array; seconds: number }> {
   const data = await file.arrayBuffer()
   const context = new AudioContext()
   try {
     const decoded = await context.decodeAudioData(data)
-    const mono = new Float32Array(decoded.length)
-    const channels = decoded.numberOfChannels
-    for (let ch = 0; ch < channels; ch++) {
-      const channel = decoded.getChannelData(ch)
-      for (let i = 0; i < channel.length; i++) mono[i] += channel[i] / channels
-    }
-    return resample(mono, decoded.sampleRate, 24000)
+    const seconds = Math.min(decoded.duration, MAX_REFERENCE_SECONDS)
+    const length = Math.max(1, Math.ceil(seconds * TARGET_RATE))
+    const offline = new OfflineAudioContext(1, length, TARGET_RATE)
+    const source = offline.createBufferSource()
+    source.buffer = decoded
+    source.connect(offline.destination)
+    source.start()
+    const rendered = await offline.startRendering()
+    return { samples: rendered.getChannelData(0), seconds }
   } finally {
     await context.close()
   }
@@ -38,12 +42,15 @@ export function Synthesizer({ device }: { device: Device }) {
   const onPickFile = async (file: File): Promise<void> => {
     setRefStatus(`decoding ${file.name}…`)
     try {
-      const samples = await decodeToMono(file)
-      setRefStatus(`encoding ${(samples.length / 24000).toFixed(1)}s reference…`)
+      const { samples, seconds } = await decodeToMono(file)
+      setRefStatus(`encoding ${seconds.toFixed(1)}s reference…`)
       await encodeReference(samples, file.name, refText)
       setRefStatus(null)
     } catch (error) {
-      setRefStatus(error instanceof Error ? error.message : String(error))
+      setRefStatus(
+        `Could not decode "${file.name}" (${file.type || 'unknown type'}). Try WAV, MP3, OGG/Opus, M4A or FLAC.`,
+      )
+      void error
     }
   }
 
@@ -111,7 +118,7 @@ export function Synthesizer({ device }: { device: Device }) {
         <input
           ref={fileRef}
           type="file"
-          accept="audio/*"
+          accept="audio/*,.mp3,.wav,.ogg,.opus,.m4a,.aac,.flac,.webm"
           hidden
           onChange={(e) => {
             const file = e.target.files?.[0]
