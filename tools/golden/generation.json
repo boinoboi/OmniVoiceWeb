@@ -1,0 +1,28 @@
+{
+  "text": "Hello, kaise ho tum? Let's test.",
+  "text_tokens": [
+    9707,
+    11,
+    595,
+    4016,
+    11386,
+    15394,
+    30,
+    6771,
+    594,
+    1273,
+    13
+  ],
+  "num_audio_tokens": 80,
+  "num_steps": 32,
+  "codes_shape": [
+    8,
+    80
+  ],
+  "step0_shape": [
+    8,
+    80,
+    1025
+  ],
+  "provider": "CPUExecutionProvider"
+}

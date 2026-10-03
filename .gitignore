@@ -34,3 +34,6 @@ tools/golden/*.npy
 tools/golden/*.wav
 !tools/golden/*.npz
 !tools/golden/*.json
+tools/.build
+tools/golden/generation_s*.bin
+tools/golden/generation_s*.json

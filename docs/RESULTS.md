@@ -38,6 +38,40 @@ Same fixtures, ORT-web WASM vs ORT Python CUDA EP. 1 s synthetic waveform (24 kH
 waveform is within 9e-4 relative — so the codec round-trip is faithful through the browser
 runtime. Codec precision is *not* the risky stage; the diffusion loop is.
 
+## Diffusion loop fidelity (int4, greedy, 32 steps)
+
+Reference: `tools/generate.py` (Python, CPU EP) for a code-switched sentence
+("Hello, kaise ho tum? Let's test.", 11 tokens, 80 audio frames). Compare: the TS greedy loop
+through ORT-web WASM (`node scripts/generation-parity.mjs`).
+
+Step-0 logits (single forward, all positions masked):
+
+| metric | value |
+|---|---|
+| cosine of logits | **0.999996** |
+| argmax token agreement | **83.59%** |
+
+So the logits are numerically almost identical, yet **16% of greedy token choices differ** — the
+model's per-codebook top-2 logits frequently sit within int4 noise. Fidelity by diffusion steps:
+
+| steps | code agreement | ms/frame (WASM) |
+|---|---|---|
+| 1 | 83.6% | 30 |
+| 4 | 46.6% | 118 |
+| 8 | 34.1% | 235 |
+| 16 | 46.9% | 469 |
+| 32 | 40.5% | 943 |
+
+**Interpretation (this is the project's core result so far):** weight-level error and even
+*logit* cosine are poor proxies for TTS quality. A cosine of 0.999996 still yields ~16% token
+flips, which the 32-step loop turns into ~60% disagreement. This is exactly why the proposal
+insists on **task-level** metrics (UTMOS, round-trip WER) rather than weight error, and why the
+precision ladder (fp16/INT8/INT4/mixed) must be measured on audio. Token flips may still decode
+to acceptable audio, so listening/UTMOS is the arbiter — the loops and token-flip rate are
+reported as diagnostics, not pass/fail gates.
+
+**Algorithm correctness gate:** step-0 logit cosine ≥ 0.999 → PASS (the loop and IO are correct).
+
 ## Export defects found
 
 - `audio_tokenizer/fp16/semantic_encoder.onnx` is **malformed**: a `LayerNormalization` node is
