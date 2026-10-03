@@ -21,3 +21,26 @@ loop is the precision-sensitive stage. End-to-end token agreement is measured in
 
 Tolerance policy: pass if `relMax ≤ 1e-2` **or** cosine ≥ 0.999 **or** argmax ≥ 99.9%.
 Exact bitwise equality is neither expected nor required across EPs.
+
+## Codec parity: Higgs Audio V2 (fp32 reference)
+
+Same fixtures, ORT-web WASM vs ORT Python CUDA EP. 1 s synthetic waveform (24 kHz),
+25 codec frames.
+
+| Sub-model | shape | max abs Δ | relative Δ | cosine | verdict |
+|---|---|---|---|---|---|
+| `acoustic_encoder` | `[1,256,25]` | 2.38e-3 | 4.0e-4 | 1.00000 | pass |
+| `semantic_encoder` | `[1,768,25]` | 1.96e-2 | 1.4e-3 | 1.00000 | pass |
+| `quantizer_encoder` (`codes` int64) | `[8,1,25]` | — | — | **100% exact** | pass |
+| `higgs_decoder` | `[1,1,24000]` | 4.68e-4 | 9.0e-4 | 1.00000 | pass |
+
+**Finding:** the discrete quantizer codes match the reference **exactly**, and the decoded
+waveform is within 9e-4 relative — so the codec round-trip is faithful through the browser
+runtime. Codec precision is *not* the risky stage; the diffusion loop is.
+
+## Export defects found
+
+- `audio_tokenizer/fp16/semantic_encoder.onnx` is **malformed**: a `LayerNormalization` node is
+  bound to both float and float16, so ORT rejects it on *any* execution provider
+  (`Type Error: Type parameter (T) bound to different types`). The other three fp16 codec models
+  load fine. A correct fp16 semantic encoder must be re-exported in Phase 8.

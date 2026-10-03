@@ -1,18 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { runHeadsProbe, type ProbeResult } from '../engine/probe'
 import type { Device } from '../engine/ort'
 import type { GpuInfo } from '../engine/capabilities'
 
+const defaultDevice = (): Device =>
+  typeof navigator !== 'undefined' && 'gpu' in navigator ? 'webgpu' : 'wasm'
+
 export function EngineLab({ gpu }: { gpu: GpuInfo | null }) {
-  const [device, setDevice] = useState<Device>('wasm')
+  const [device, setDevice] = useState<Device>(defaultDevice)
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState('')
   const [result, setResult] = useState<ProbeResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (gpu?.available) setDevice('webgpu')
-  }, [gpu])
 
   const run = async () => {
     setRunning(true)

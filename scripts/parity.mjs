@@ -110,11 +110,23 @@ for (const spec of specs.cases) {
   console.log(`\n[${spec.model}]`)
   for (const output of spec.outputs) {
     const res = results[output.name]
-    const { max, mean, goldMax, relMax, cosine } = compare(output.file, res)
+    if (output.dtype === 'int64') {
+      const gold = readArray(output.file, 'int64')
+      const got = res.data
+      let equal = 0
+      for (let i = 0; i < gold.length; i++) if (gold[i] === got[i]) equal++
+      const rate = equal / gold.length
+      const ok = rate >= 0.999
+      if (!ok) failed = true
+      console.log(
+        `  ${output.name.padEnd(16)} shape=${JSON.stringify(res.dims)}  exact-match=${(rate * 100).toFixed(2)}%  ${ok ? 'PASS' : 'FAIL'}`,
+      )
+      continue
+    }
+    const { max, relMax, cosine } = compare(output.file, res)
     const kind = spec.outputs.length === 1 && res.dims.length === 4 ? 'logits' : null
     const agree = kind ? argmaxAgreement(output.file, res.dims, res) : null
-    const ok =
-      relMax <= REL_TOL || cosine >= 0.999 || (agree !== null && agree >= 0.999)
+    const ok = relMax <= REL_TOL || cosine >= 0.999 || (agree !== null && agree >= 0.999)
     if (!ok) failed = true
     const extra = agree !== null ? `  argmax=${(agree * 100).toFixed(2)}%` : ''
     console.log(

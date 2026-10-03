@@ -716,6 +716,123 @@
           "file": "backbone_output.bin"
         }
       ]
+    },
+    {
+      "model": "audio_tokenizer/acoustic_encoder.onnx",
+      "inputs": [
+        {
+          "name": "waveform_24k",
+          "dtype": "float32",
+          "shape": [
+            1,
+            1,
+            24000
+          ],
+          "file": "codec_waveform24.bin"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "acoustic_features",
+          "dtype": "float32",
+          "shape": [
+            1,
+            256,
+            25
+          ],
+          "file": "codec_acoustic.bin"
+        }
+      ]
+    },
+    {
+      "model": "audio_tokenizer/semantic_encoder.onnx",
+      "inputs": [
+        {
+          "name": "waveform_16k",
+          "dtype": "float32",
+          "shape": [
+            1,
+            16000
+          ],
+          "file": "codec_waveform16.bin"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "semantic_features",
+          "dtype": "float32",
+          "shape": [
+            1,
+            768,
+            25
+          ],
+          "file": "codec_semantic.bin"
+        }
+      ]
+    },
+    {
+      "model": "audio_tokenizer/quantizer_encoder.onnx",
+      "inputs": [
+        {
+          "name": "acoustic_features",
+          "dtype": "float32",
+          "shape": [
+            1,
+            256,
+            25
+          ],
+          "file": "codec_q_acoustic.bin"
+        },
+        {
+          "name": "semantic_features",
+          "dtype": "float32",
+          "shape": [
+            1,
+            768,
+            25
+          ],
+          "file": "codec_q_semantic.bin"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "codes",
+          "dtype": "int64",
+          "shape": [
+            8,
+            1,
+            25
+          ],
+          "file": "codec_codes.bin"
+        }
+      ]
+    },
+    {
+      "model": "audio_tokenizer/higgs_decoder.onnx",
+      "inputs": [
+        {
+          "name": "codes",
+          "dtype": "int64",
+          "shape": [
+            8,
+            1,
+            25
+          ],
+          "file": "codec_d_codes.bin"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "waveform_24k",
+          "dtype": "float32",
+          "shape": [
+            1,
+            1,
+            24000
+          ],
+          "file": "codec_decoded.bin"
+        }
+      ]
     }
   ]
 }

@@ -22,6 +22,18 @@ FILES = [
     "int4/tokenizer.json",
     "int4/tokenizer_config.json",
     "int4/config.json",
+    "audio_tokenizer/fp16/acoustic_encoder.onnx",
+    "audio_tokenizer/fp16/acoustic_encoder.onnx.data",
+    "audio_tokenizer/fp16/semantic_encoder.onnx",
+    "audio_tokenizer/fp16/semantic_encoder.onnx.data",
+    "audio_tokenizer/fp16/quantizer_encoder.onnx",
+    "audio_tokenizer/fp16/higgs_decoder.onnx",
+    "audio_tokenizer/fp16/higgs_decoder.onnx.data",
+    "audio_tokenizer/fp16/model_config.json",
+    "audio_tokenizer/semantic_encoder.onnx",
+    "audio_tokenizer/acoustic_encoder.onnx",
+    "audio_tokenizer/quantizer_encoder.onnx",
+    "audio_tokenizer/higgs_decoder.onnx",
 ]
 
 HIDDEN = 1024
@@ -42,14 +54,15 @@ def download() -> None:
         print(f"  {name} -> {path}")
 
 
-def session(rel: str):
+def session(rel: str, provider: str = "CPUExecutionProvider"):
     import onnxruntime as ort
 
     opts = ort.SessionOptions()
     opts.log_severity_level = 3
-    return ort.InferenceSession(
-        str(MODELS / rel), sess_options=opts, providers=["CPUExecutionProvider"]
-    )
+    available = ort.get_available_providers()
+    if provider == "auto":
+        provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in available else "CPUExecutionProvider"
+    return ort.InferenceSession(str(MODELS / rel), sess_options=opts, providers=[provider])
 
 
 def tensor_desc(name: str, array: np.ndarray | None, case: str, suffix: str, **special) -> dict:
@@ -125,6 +138,71 @@ def gen_backbone(rng: np.random.Generator, seq: int = 20):
     }
 
 
+def gen_codec(rng: np.random.Generator):
+    from math import gcd
+
+    from scipy.signal import resample_poly
+
+    sr24 = 24000
+    n = sr24
+    t = np.arange(n) / sr24
+    wav24 = (
+        0.3 * np.sin(2 * np.pi * 220 * t)
+        + 0.2 * np.sin(2 * np.pi * 440 * t)
+        + 0.02 * rng.standard_normal(n)
+    ).astype(np.float32)
+    wav24 = np.clip(wav24, -1.0, 1.0)
+    g = gcd(16000, sr24)
+    wav16 = resample_poly(wav24, 16000 // g, sr24 // g).astype(np.float32)
+
+    ac = session("audio_tokenizer/acoustic_encoder.onnx", "auto")
+    se = session("audio_tokenizer/semantic_encoder.onnx", "auto")
+    qe = session("audio_tokenizer/quantizer_encoder.onnx", "auto")
+    hd = session("audio_tokenizer/higgs_decoder.onnx", "auto")
+    print("higgs acoustic inputs:", [i.name for i in ac.get_inputs()])
+    print("higgs semantic inputs:", [i.name for i in se.get_inputs()])
+    print("higgs quantizer inputs:", [i.name for i in qe.get_inputs()])
+    print("higgs decoder inputs:", [i.name for i in hd.get_inputs()])
+
+    wave24 = wav24[None, None, :]
+    wave16 = wav16[None, :]
+    acoustic = ac.run(["acoustic_features"], {"waveform_24k": wave24})[0]
+    semantic = se.run(["semantic_features"], {"waveform_16k": wave16})[0]
+    frames = min(acoustic.shape[2], semantic.shape[2])
+    acoustic = acoustic[:, :, :frames]
+    semantic = semantic[:, :, :frames]
+    codes = qe.run(["codes"], {"acoustic_features": acoustic, "semantic_features": semantic})[0]
+    decoded = hd.run(["waveform_24k"], {"codes": codes})[0]
+    print(f"codec: wav24 {wave24.shape} -> acoustic {acoustic.shape} + semantic {semantic.shape}")
+    print(f"codec: codes {codes.shape} -> waveform {decoded.shape}")
+
+    return [
+        {
+            "model": "audio_tokenizer/acoustic_encoder.onnx",
+            "inputs": [tensor_desc("waveform_24k", wave24, "codec", "waveform24")],
+            "outputs": [tensor_desc("acoustic_features", acoustic, "codec", "acoustic")],
+        },
+        {
+            "model": "audio_tokenizer/semantic_encoder.onnx",
+            "inputs": [tensor_desc("waveform_16k", wave16, "codec", "waveform16")],
+            "outputs": [tensor_desc("semantic_features", semantic, "codec", "semantic")],
+        },
+        {
+            "model": "audio_tokenizer/quantizer_encoder.onnx",
+            "inputs": [
+                tensor_desc("acoustic_features", acoustic, "codec", "q_acoustic"),
+                tensor_desc("semantic_features", semantic, "codec", "q_semantic"),
+            ],
+            "outputs": [tensor_desc("codes", codes, "codec", "codes")],
+        },
+        {
+            "model": "audio_tokenizer/higgs_decoder.onnx",
+            "inputs": [tensor_desc("codes", codes, "codec", "d_codes")],
+            "outputs": [tensor_desc("waveform_24k", decoded, "codec", "decoded")],
+        },
+    ]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--download", action="store_true")
@@ -138,6 +216,7 @@ def main() -> None:
 
     rng = np.random.default_rng(args.seed)
     cases = [gen_heads(rng), gen_embeddings(rng), gen_backbone(rng)]
+    cases.extend(gen_codec(rng))
     (GOLDEN / "parity.json").write_text(
         json.dumps({"seed": args.seed, "cases": cases}, indent=2)
     )
