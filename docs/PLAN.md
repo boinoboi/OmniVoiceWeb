@@ -51,7 +51,18 @@ This is the live plan. Update checkboxes as work lands. The todo list mirrors th
 - [ ] Unit tests for unmask scheduling + a golden test for one full generation (codes match Python).
 - **Gate:** TS-generated codes match Python reference for a fixed sentence. **MESSAGE USER.**
 
-## Phase 4 — End-to-end auto-voice (M5)
+## Phase 3b — REAL algorithm (CFG + special-token prompt)  [REQUIRED for quality]
+
+The greedy path produces out-of-distribution audio. Port the true OmniVoice loop from the
+reference (see `docs/ALGORITHM.md`): special-token prompt, classifier-free guidance
+(cond+uncond), timestep schedule (`t_shift=0.1`), layer penalty (5.0), gumbel position
+sampling (T=5.0), greedy class (T=0).
+
+- [ ] `engine/prompt.ts`, `engine/duration.ts`; extend `algorithm.ts` + `backbone.ts`.
+- [ ] Reference goldens from the `omnivoice` Python package (install in `tools/.venv`).
+- **Gate:** browser audio has speech-like spectrum + intelligible; MESSAGE USER (clip).
+
+## Phase 4 — End-to-end auto-voice (M5)  [pipeline done; quality via Phase 3b]
 
 - [ ] `engine/pipeline.ts`: text → codes → higgs → WAV; progress events per stage.
 - [ ] `worker/inference.worker.ts`: host the engine; post progress + audio.
