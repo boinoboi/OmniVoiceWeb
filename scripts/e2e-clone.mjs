@@ -58,15 +58,26 @@ await page.keyboard.up('Control')
 await page.keyboard.press('Backspace')
 await page.type('.textarea', text)
 
-console.log('opening cloner + typing transcript')
 await page.click('.cloner summary')
-await page.click('.cloner input.textarea')
-await page.type('.cloner input.textarea', refText)
-await page.click('.consent input[type="checkbox"]')
 
-console.log(`uploading reference ${refPath}`)
-const fileInput = await page.waitForSelector('.cloner input[type="file"]', { timeout: 15_000 })
-await fileInput.uploadFile(refPath)
+if (process.env.CLONE_VOICE) {
+  console.log('selecting precomputed voice:', process.env.CLONE_VOICE)
+  const clicked = await page.evaluate((name) => {
+    const chip = [...document.querySelectorAll('.cloner .chip')].find((c) =>
+      c.textContent?.includes(name),
+    )
+    chip?.click()
+    return Boolean(chip)
+  }, process.env.CLONE_VOICE)
+  if (!clicked) throw new Error(`voice chip "${process.env.CLONE_VOICE}" not found`)
+} else {
+  console.log('typing transcript + uploading reference', refPath)
+  await page.click('.cloner input.textarea')
+  await page.type('.cloner input.textarea', refText)
+  await page.click('.consent input[type="checkbox"]')
+  const fileInput = await page.waitForSelector('.cloner input[type="file"]', { timeout: 15_000 })
+  await fileInput.uploadFile(refPath)
+}
 
 const poll = setInterval(async () => {
   try {

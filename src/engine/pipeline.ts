@@ -11,7 +11,7 @@ import { prepareInputs } from './prompt'
 import { chunkText } from './streaming'
 
 export interface SynthProgress {
-  stage: 'download' | 'load' | 'tokenize' | 'generate' | 'decode' | 'done'
+  stage: 'download' | 'load' | 'tokenize' | 'generate' | 'decode' | 'clone' | 'done'
   ratio: number
   detail?: string
 }
@@ -119,12 +119,13 @@ export class Synthesizer {
           detail: update.file.path,
         }),
     })
-    onProgress?.({ stage: 'load', ratio: 0 })
-    this.encoders = {
-      acoustic: await createCachedSession(PATHS.acoustic, this.device),
-      semantic: await createCachedSession(PATHS.semantic, this.device),
-      quantizer: await createCachedSession(PATHS.quantizer, this.device),
-    }
+    onProgress?.({ stage: 'load', ratio: 0, detail: 'acoustic encoder' })
+    const acoustic = await createCachedSession(PATHS.acoustic, this.device)
+    onProgress?.({ stage: 'load', ratio: 0, detail: 'semantic encoder' })
+    const semantic = await createCachedSession(PATHS.semantic, this.device)
+    onProgress?.({ stage: 'load', ratio: 0, detail: 'quantizer encoder' })
+    const quantizer = await createCachedSession(PATHS.quantizer, this.device)
+    this.encoders = { acoustic, semantic, quantizer }
   }
 
   async encodeReference(waveform24k: Float32Array): Promise<ReferenceCodes> {

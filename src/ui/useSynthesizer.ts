@@ -230,6 +230,11 @@ export function useSynthesizer(device: Device) {
     [device, send],
   )
 
+  const setReference = useCallback((ref: VoiceReference) => {
+    referenceRef.current = ref
+    setReferenceState(ref)
+  }, [])
+
   const clearReference = useCallback(() => {
     referenceRef.current = null
     setReferenceState(null)
@@ -242,5 +247,5 @@ export function useSynthesizer(device: Device) {
     }
   }, [])
 
-  return { view, generate, encodeReference, reference, clearReference }
+  return { view, generate, encodeReference, setReference, reference, clearReference }
 }

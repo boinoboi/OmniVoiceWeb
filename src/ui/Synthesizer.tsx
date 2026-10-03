@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { loadVoices, type PrecomputedVoice } from '../engine/voices'
 import { useSynthesizer } from './useSynthesizer'
 import type { Device } from '../engine/ort'
 
@@ -32,12 +33,18 @@ async function decodeToMono(file: File): Promise<{ samples: Float32Array; second
 
 export function Synthesizer({ device }: { device: Device }) {
   const [text, setText] = useState(EXAMPLES[1])
-  const { view, generate, encodeReference, reference, clearReference } = useSynthesizer(device)
+  const { view, generate, encodeReference, setReference, reference, clearReference } =
+    useSynthesizer(device)
   const [refText, setRefText] = useState('')
   const [refStatus, setRefStatus] = useState<string | null>(null)
   const [consented, setConsented] = useState(false)
+  const [voices, setVoices] = useState<PrecomputedVoice[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
   const busy = view.phase === 'loading' || view.phase === 'generating'
+
+  useEffect(() => {
+    void loadVoices(`${import.meta.env.BASE_URL}voices.json`).then(setVoices)
+  }, [])
 
   const onPickFile = async (file: File): Promise<void> => {
     setRefStatus(`decoding ${file.name}…`)
@@ -112,9 +119,34 @@ export function Synthesizer({ device }: { device: Device }) {
       <details className="cloner">
         <summary>Clone a voice (optional)</summary>
         <p className="muted small">
-          Upload a 3–10s clip. Needs the Full profile (Higgs encoders, ~654 MB, downloaded on first
-          use). Only clone voices you have consent to use.
+          Pick a precomputed voice (instant) or upload a 3–10s clip in any format — decoding happens
+          locally in your browser, nothing is uploaded. Uploading a new clip needs the Full profile
+          (Higgs encoders, ~654 MB, downloaded on first use). Only clone voices you have consent to
+          use.
         </p>
+        {voices.length > 0 && (
+          <div className="chips">
+            {voices.map((voice) => (
+              <button
+                key={voice.id}
+                type="button"
+                className="chip"
+                disabled={busy}
+                onClick={() =>
+                  setReference({
+                    data: voice.codes,
+                    frames: voice.frames,
+                    rms: voice.rms,
+                    text: voice.text,
+                    name: voice.name,
+                  })
+                }
+              >
+                Use {voice.name}
+              </button>
+            ))}
+          </div>
+        )}
         <input
           ref={fileRef}
           type="file"
