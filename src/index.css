@@ -36,12 +36,17 @@ body {
     radial-gradient(900px 600px at 100% 0%, rgba(157, 109, 255, 0.14), transparent 55%),
     var(--bg);
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
 }
 
 .app {
   max-width: 1080px;
   margin: 0 auto;
   padding: 32px 20px 64px;
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+  padding-bottom: max(64px, env(safe-area-inset-bottom));
 }
 
 .header {
@@ -218,6 +223,8 @@ body {
   color: var(--text);
   cursor: pointer;
   text-align: left;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .segmented button.active {
@@ -353,12 +360,13 @@ body {
   width: 100%;
   resize: vertical;
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text);
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
+  min-height: 96px;
 }
 
 .textarea:focus {
@@ -366,7 +374,111 @@ body {
   border-color: var(--accent);
 }
 
+.hero-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border: 1px solid rgba(157, 109, 255, 0.35);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(109, 139, 255, 0.12), rgba(157, 109, 255, 0.12));
+}
+
+.pill {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 7px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-2);
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chip:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.notice-line {
+  display: block;
+}
+
+.notice.good {
+  color: var(--ok);
+  background: rgba(70, 211, 154, 0.08);
+  border: 1px solid rgba(70, 211, 154, 0.28);
+}
+
+.notice.caution {
+  color: var(--warn);
+  background: rgba(255, 191, 92, 0.08);
+  border: 1px solid rgba(255, 191, 92, 0.28);
+}
+
+.notice.warn {
+  color: var(--err);
+  background: rgba(255, 107, 125, 0.08);
+  border: 1px solid rgba(255, 107, 125, 0.3);
+}
+
 .footer {
   margin-top: 28px;
   text-align: center;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (max-width: 560px) {
+  .app {
+    padding-top: 20px;
+  }
+
+  .header h1 {
+    font-size: 19px;
+  }
+
+  .stats,
+  .segmented {
+    grid-template-columns: 1fr;
+  }
+
+  .actions .btn {
+    flex: 1 1 140px;
+  }
+
+  .ghost-link {
+    display: none;
+  }
 }

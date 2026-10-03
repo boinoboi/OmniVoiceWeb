@@ -1,0 +1,24 @@
+{
+  "name": "OmniVoice Web",
+  "short_name": "OmniVoice",
+  "description": "Multilingual zero-shot text-to-speech that runs fully local in your browser on WebGPU.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#0a0b10",
+  "theme_color": "#0a0b10",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

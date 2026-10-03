@@ -49,3 +49,95 @@ export async function detectGpu(): Promise<GpuInfo> {
     return { available: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
+
+export interface DeviceInfo {
+  mobile: boolean
+  ios: boolean
+  android: boolean
+  touch: boolean
+  cores?: number
+  memoryGB?: number
+  platform: string
+}
+
+export function detectDevice(): DeviceInfo {
+  if (typeof navigator === 'undefined') {
+    return { mobile: false, ios: false, android: false, touch: false, platform: 'unknown' }
+  }
+  const ua = navigator.userAgent
+  const maxTouch = navigator.maxTouchPoints ?? 0
+  const ios =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && maxTouch > 1)
+  const android = /Android/i.test(ua)
+  const mobile = ios || android || /Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)
+  const nav = navigator as Navigator & { deviceMemory?: number }
+  return {
+    mobile,
+    ios,
+    android,
+    touch: maxTouch > 0 || 'ontouchstart' in window,
+    cores: navigator.hardwareConcurrency,
+    memoryGB: nav.deviceMemory,
+    platform: navigator.platform || 'unknown',
+  }
+}
+
+export type FeasibilityLevel = 'good' | 'caution' | 'warn'
+
+export interface Feasibility {
+  level: FeasibilityLevel
+  messages: string[]
+}
+
+export function assessFeasibility(
+  gpu: GpuInfo | null,
+  device: DeviceInfo,
+  profileBytes: number,
+): Feasibility {
+  const messages: string[] = []
+  let level: FeasibilityLevel = 'good'
+
+  if (!gpu) {
+    return { level: 'caution', messages: ['Checking device capabilities…'] }
+  }
+
+  if (!gpu.available) {
+    level = 'caution'
+    messages.push(
+      'WebGPU is unavailable. Generation will fall back to CPU (WASM) and be far slower.',
+    )
+    if (device.ios) {
+      messages.push('On iPhone/iPad, WebGPU needs iOS 18 or newer in Safari.')
+    }
+  }
+
+  const profileMB = profileBytes / 1_000_000
+  const maxBuffer = gpu.maxBufferSize ?? 0
+  if (maxBuffer && profileMB > 0 && maxBuffer < 268_435_456) {
+    level = 'warn'
+    messages.push(
+      'This GPU reports a small max buffer size. Large int4 weights may fail to load on this device.',
+    )
+  }
+
+  if (device.memoryGB !== undefined && device.memoryGB <= 4) {
+    level = 'warn'
+    messages.push(
+      `This device reports ~${device.memoryGB} GB RAM. Downloading hundreds of MB of weights may exhaust memory.`,
+    )
+  }
+
+  if (device.mobile && profileBytes > 500_000_000) {
+    level = level === 'warn' ? 'warn' : 'caution'
+    messages.push(
+      'The Full (voice cloning) profile is large and may be unstable on phones. Lite is recommended on mobile.',
+    )
+  }
+
+  if (messages.length === 0) {
+    messages.push('This device looks capable of running the engine locally.')
+  }
+
+  return { level, messages }
+}

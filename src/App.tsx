@@ -1,8 +1,11 @@
 import { SystemCheck } from './ui/SystemCheck'
 import { ModelManager } from './ui/ModelManager'
 import { Synthesizer } from './ui/Synthesizer'
+import { useCapabilities } from './ui/useCapabilities'
 
 export default function App() {
+  const { gpu, device, storage } = useCapabilities()
+
   return (
     <div className="app">
       <header className="header">
@@ -10,23 +13,37 @@ export default function App() {
           <span className="logo">OV</span>
           <div>
             <h1>OmniVoice Web</h1>
-            <p className="tagline">Multilingual zero-shot TTS · 100% local · WebGPU</p>
+            <p className="tagline">Mix languages mid-sentence · 600+ languages · local WebGPU</p>
           </div>
         </div>
-        <a className="ghost-link" href="https://huggingface.co/onnx-community/OmniVoice-Onnx" target="_blank" rel="noreferrer">
-          onnx-community/OmniVoice-Onnx
+        <a
+          className="ghost-link"
+          href="https://github.com/boinoboi/OmniVoiceWeb"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Source
         </a>
       </header>
 
+      <div className="hero-strip">
+        <span className="pill">Code-switching ready</span>
+        <span className="muted small">
+          Speak English and Spanish (or any of 600+ languages) in the same sentence — OmniVoice
+          follows without switching voices.
+        </span>
+      </div>
+
       <main className="grid">
-        <SystemCheck />
-        <ModelManager />
+        <SystemCheck gpu={gpu} device={device} storage={storage} />
+        <ModelManager gpu={gpu} device={device} />
         <Synthesizer ready={false} />
       </main>
 
       <footer className="footer">
         <p className="muted small">
-          Model weights are CC-BY-NC. Never use voice cloning without consent. No audio leaves your device.
+          Model weights are CC-BY-NC. Never use voice cloning without consent. All audio is generated
+          on your device and never uploaded.
         </p>
       </footer>
     </div>

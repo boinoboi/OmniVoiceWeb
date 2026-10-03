@@ -1,6 +1,18 @@
 import { useMemo } from 'react'
 import { useModelManager } from './useModelManager'
-import { KIND_LABELS, bytesForProfile, formatBytes, type AssetKind, type Profile } from '../engine/manifest'
+import { assessFeasibility, type DeviceInfo, type GpuInfo } from '../engine/capabilities'
+import {
+  KIND_LABELS,
+  bytesForProfile,
+  formatBytes,
+  type AssetKind,
+  type Profile,
+} from '../engine/manifest'
+
+interface Props {
+  gpu: GpuInfo | null
+  device: DeviceInfo
+}
 
 function groupStatuses(
   statuses: { file: { kind: AssetKind; bytes: number }; cached: boolean }[],
@@ -17,19 +29,25 @@ function groupStatuses(
   return order.filter((k) => seen.has(k)).map((kind) => ({ kind, ...seen.get(kind)! }))
 }
 
-export function ModelManager() {
+export function ModelManager({ gpu, device }: Props) {
   const manager = useModelManager()
   const { profile, setProfile, progress, downloading, error, allReady, cacheSupported } = manager
 
   const groups = useMemo(() => groupStatuses(manager.statuses), [manager.statuses])
   const pct = progress.total > 0 ? Math.min(100, (progress.loaded / progress.total) * 100) : 0
+  const feasibility = useMemo(
+    () => assessFeasibility(gpu, device, progress.total),
+    [gpu, device, progress.total],
+  )
 
   return (
     <section className="card">
       <div className="card-head">
         <h2>Models</h2>
         <span className={`badge ${allReady ? 'ok' : 'idle'}`}>
-          {allReady ? 'cached & ready' : `${formatBytes(progress.loaded)} / ${formatBytes(progress.total)}`}
+          {allReady
+            ? 'cached & ready'
+            : `${formatBytes(progress.loaded)} / ${formatBytes(progress.total)}`}
         </span>
       </div>
 
@@ -55,7 +73,7 @@ export function ModelManager() {
           : 'Adds the Higgs encoders so you can clone a voice from a short reference clip.'}
       </p>
 
-      <div className="progress" aria-hidden={!downloading}>
+      <div className="progress">
         <span style={{ width: `${pct}%` }} />
       </div>
 
@@ -74,10 +92,19 @@ export function ModelManager() {
         })}
       </ul>
 
+      <p className={`notice ${feasibility.level}`}>
+        {feasibility.messages.map((m, i) => (
+          <span key={i} className="notice-line">
+            {m}
+          </span>
+        ))}
+      </p>
+
       {error && <p className="notice err">{error}</p>}
       {!cacheSupported && (
         <p className="notice err">
-          Cache Storage is unavailable. Models will not persist between reloads. Serve over HTTPS or localhost.
+          Cache Storage is unavailable. Models will not persist between reloads. Serve over HTTPS or
+          localhost.
         </p>
       )}
 

@@ -9,6 +9,8 @@ using a custom TypeScript inference runtime on top of `onnxruntime-web`.
 
 ## Features
 
+- **Code-switching**: mix two (or more) languages inside one sentence and keep a single,
+  consistent voice across every language boundary
 - 600+ languages, zero-shot TTS
 - Voice cloning from a short reference clip
 - 100% local inference (WebGPU, WASM fallback)
@@ -43,6 +45,18 @@ npm run lint
 
 The ONNX Runtime WebAssembly files are copied into `public/ort/` by `scripts/copy-ort.mjs`
 (`npm run ort:copy`). They are git-ignored and copied automatically in CI before the build.
+
+## Device support
+
+- **Desktop**: Chrome/Edge 113+, Safari 18+, Firefox 141+ (WebGPU required for good speed)
+- **iOS/iPadOS**: Safari 18+ (WebGPU). Older iOS falls back to CPU/WASM and is very slow.
+- **Android**: Chrome with WebGPU enabled
+
+The site is a responsive SPA with safe-area insets and 16px inputs (no iOS focus zoom), so it
+works on phones and tablets. The real constraint on mobile is **RAM**, not the UI: the Lite
+profile is ~423 MB and Full is ~735 MB. Lite is recommended on phones; Full voice cloning may be
+unstable on low-memory devices. The app detects device memory, GPU buffer limits and
+`navigator.gpu` availability and warns accordingly.
 
 ## Deployment
 
