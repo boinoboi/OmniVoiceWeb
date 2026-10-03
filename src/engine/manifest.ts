@@ -6,6 +6,7 @@ export const BIDIR_BASE =
 
 export type Profile = 'lite' | 'full'
 export type AssetKind = 'backbone' | 'tokenizer' | 'decoder' | 'encoder'
+export type Backend = 'webgpu' | 'wasm'
 
 export interface ModelFile {
   path: string
@@ -13,6 +14,7 @@ export interface ModelFile {
   bytes: number
   kind: AssetKind
   requires: Profile
+  backends?: Backend[]
 }
 
 const file = (
@@ -20,7 +22,8 @@ const file = (
   bytes: number,
   kind: AssetKind,
   requires: Profile = 'lite',
-): ModelFile => ({ path, url: HF_BASE + path, bytes, kind, requires })
+  backends?: Backend[],
+): ModelFile => ({ path, url: HF_BASE + path, bytes, kind, requires, backends })
 
 const bidir = (
   path: string,
@@ -30,8 +33,10 @@ const bidir = (
 ): ModelFile => ({ path, url: BIDIR_BASE + path, bytes, kind, requires })
 
 export const MODEL_FILES: ModelFile[] = [
-  file('int4/audio_embeddings_encoder.onnx', 2363, 'backbone'),
-  file('int4/audio_embeddings_encoder.onnx.data', 87160832, 'backbone'),
+  file('int4/audio_embeddings_encoder.onnx', 2363, 'backbone', 'lite', ['webgpu']),
+  file('int4/audio_embeddings_encoder.onnx.data', 87160832, 'backbone', 'lite', ['webgpu']),
+  file('audio_embeddings_encoder.onnx', 2172, 'backbone', 'lite', ['wasm']),
+  file('audio_embeddings_encoder.onnx.data', 327426048, 'backbone', 'lite', ['wasm']),
   file('int4/audio_heads_decoder.onnx', 4462676, 'backbone'),
   bidir('llm_decoder_int4.onnx', 4022710, 'backbone'),
   bidir('llm_decoder_int4.onnx.data', 275484672, 'backbone'),
@@ -54,8 +59,14 @@ export const MODEL_FILES: ModelFile[] = [
 export const filesForProfile = (profile: Profile): ModelFile[] =>
   MODEL_FILES.filter((f) => f.requires === 'lite' || profile === 'full')
 
+export const filesForDevice = (backend: Backend, profile: Profile): ModelFile[] =>
+  filesForProfile(profile).filter((f) => !f.backends || f.backends.includes(backend))
+
 export const bytesForProfile = (profile: Profile): number =>
   filesForProfile(profile).reduce((total, f) => total + f.bytes, 0)
+
+export const bytesForDevice = (backend: Backend, profile: Profile): number =>
+  filesForDevice(backend, profile).reduce((total, f) => total + f.bytes, 0)
 
 export const fileByPath = (path: string): ModelFile | undefined =>
   MODEL_FILES.find((f) => f.path === path)

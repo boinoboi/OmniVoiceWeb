@@ -8,19 +8,19 @@ import {
   type CacheStatus,
   type DownloadUpdate,
 } from '../engine/cache'
-import { bytesForProfile, type Profile } from '../engine/manifest'
+import { bytesForDevice, type Backend, type Profile } from '../engine/manifest'
 
 export interface OverallProgress {
   loaded: number
   total: number
 }
 
-export function useModelManager() {
+export function useModelManager(backend: Backend = 'webgpu') {
   const [profile, setProfile] = useState<Profile>('lite')
   const [statuses, setStatuses] = useState<CacheStatus[]>([])
   const [progress, setProgress] = useState<OverallProgress>({
     loaded: 0,
-    total: bytesForProfile('lite'),
+    total: bytesForDevice(backend, 'lite'),
   })
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,19 +35,19 @@ export function useModelManager() {
   }, [])
 
   const refresh = useCallback(async () => {
-    const next = await inspectCache(profile)
-    applyStatuses(next, bytesForProfile(profile))
-  }, [profile, applyStatuses])
+    const next = await inspectCache(profile, backend)
+    applyStatuses(next, bytesForDevice(backend, profile))
+  }, [profile, backend, applyStatuses])
 
   useEffect(() => {
     let active = true
-    void inspectCache(profile).then((next) => {
-      if (active) applyStatuses(next, bytesForProfile(profile))
+    void inspectCache(profile, backend).then((next) => {
+      if (active) applyStatuses(next, bytesForDevice(backend, profile))
     })
     return () => {
       active = false
     }
-  }, [profile, applyStatuses])
+  }, [profile, backend, applyStatuses])
 
   const start = useCallback(async () => {
     setError(null)
@@ -61,7 +61,7 @@ export function useModelManager() {
         setProgress({ loaded: update.overallLoaded, total: update.overallTotal }),
     })
     try {
-      await downloader.run(profile)
+      await downloader.run(profile, backend)
     } catch (e) {
       if (!(e instanceof DOMException && e.name === 'AbortError')) {
         setError(e instanceof Error ? e.message : String(e))
@@ -71,7 +71,7 @@ export function useModelManager() {
       abortRef.current = null
       await refresh()
     }
-  }, [profile, refresh])
+  }, [profile, backend, refresh])
 
   const cancel = useCallback(() => abortRef.current?.abort(), [])
 

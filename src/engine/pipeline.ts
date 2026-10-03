@@ -5,7 +5,7 @@ import { ensureCached } from './cache'
 import { encodeReference, type EncoderSet, type ReferenceCodes } from './cloning'
 import { estimateTargetTokens } from './duration'
 import { toFloat32 } from './dtype'
-import { filesForProfile, type Profile } from './manifest'
+import { filesForDevice, filesForProfile, type Profile } from './manifest'
 import { createCachedSession, ort, releaseSession, type Device, type SessionHandle } from './ort'
 import { prepareInputs } from './prompt'
 import { chunkText } from './streaming'
@@ -46,6 +46,7 @@ export interface SynthChunk {
 
 const PATHS = {
   embeddings: 'int4/audio_embeddings_encoder.onnx',
+  embeddingsFp32: 'audio_embeddings_encoder.onnx',
   llm: 'llm_decoder_int4.onnx',
   heads: 'int4/audio_heads_decoder.onnx',
   decoder: 'audio_tokenizer/higgs_decoder.onnx',
@@ -84,7 +85,7 @@ export class Synthesizer {
     this.device = device
     if (this.loaded) return
 
-    const files = filesForProfile(profile)
+    const files = filesForDevice(device, profile)
     await ensureCached(files, {
       concurrency: 2,
       onUpdate: (update) =>
@@ -97,7 +98,8 @@ export class Synthesizer {
 
     onProgress?.({ stage: 'load', ratio: 0 })
     // Session creation must be sequential: ORT mounts external data globally.
-    this.embeddings = await createCachedSession(PATHS.embeddings, device)
+    const embeddingsPath = device === 'webgpu' ? PATHS.embeddings : PATHS.embeddingsFp32
+    this.embeddings = await createCachedSession(embeddingsPath, device)
     this.llm = await createCachedSession(PATHS.llm, device)
     this.heads = await createCachedSession(PATHS.heads, device)
     this.decoder = await createCachedSession(PATHS.decoder, device)

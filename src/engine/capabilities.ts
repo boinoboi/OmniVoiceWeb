@@ -24,7 +24,7 @@ interface AdapterLike {
 }
 
 interface GpuLike {
-  requestAdapter(): Promise<AdapterLike | null>
+  requestAdapter(options?: { powerPreference?: string }): Promise<AdapterLike | null>
 }
 
 export async function detectGpu(): Promise<GpuInfo> {
@@ -35,22 +35,30 @@ export async function detectGpu(): Promise<GpuInfo> {
   if (!gpu) {
     return { available: false, error: 'WebGPU is not supported in this browser' }
   }
-  try {
-    const adapter = await gpu.requestAdapter()
-    if (!adapter) return { available: false, error: 'No WebGPU adapter available' }
-    return {
-      available: true,
-      vendor: adapter.info?.vendor,
-      architecture: adapter.info?.architecture,
-      device: adapter.info?.device,
-      description: adapter.info?.description,
-      maxBufferSize: adapter.limits?.maxBufferSize,
-      maxStorageBufferBindingSize: adapter.limits?.maxStorageBufferBindingSize,
-      shaderF16: adapter.features?.has('shader-f16') ?? false,
+  let lastError: string | undefined
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const adapter =
+        (await gpu.requestAdapter({ powerPreference: 'high-performance' })) ??
+        (await gpu.requestAdapter())
+      if (adapter) {
+        return {
+          available: true,
+          vendor: adapter.info?.vendor,
+          architecture: adapter.info?.architecture,
+          device: adapter.info?.device,
+          description: adapter.info?.description,
+          maxBufferSize: adapter.limits?.maxBufferSize,
+          maxStorageBufferBindingSize: adapter.limits?.maxStorageBufferBindingSize,
+          shaderF16: adapter.features?.has('shader-f16') ?? false,
+        }
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error)
     }
-  } catch (error) {
-    return { available: false, error: error instanceof Error ? error.message : String(error) }
+    await new Promise((resolve) => setTimeout(resolve, 250))
   }
+  return { available: false, error: lastError ?? 'No WebGPU adapter available' }
 }
 
 export interface DeviceInfo {

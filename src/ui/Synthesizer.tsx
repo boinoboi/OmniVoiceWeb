@@ -98,6 +98,14 @@ export function Synthesizer({ device }: { device: Device }) {
         consistent voice across the language boundary.
       </p>
 
+      {device === 'wasm' && (
+        <p className="notice caution">
+          WebGPU isn't available in this browser, so generation runs on the CPU (WASM): it works but
+          is <strong>much slower</strong> and downloads a larger backbone (~700 MB). For fast
+          on-device inference use Chrome or Edge on desktop/Android, or Safari 18+ on iOS.
+        </p>
+      )}
+
       <div className="progress">
         <span style={{ width: `${Math.round(view.ratio * 100)}%` }} />
       </div>

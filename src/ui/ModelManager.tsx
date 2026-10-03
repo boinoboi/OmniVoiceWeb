@@ -3,9 +3,10 @@ import { useModelManager } from './useModelManager'
 import { assessFeasibility, type DeviceInfo, type GpuInfo } from '../engine/capabilities'
 import {
   KIND_LABELS,
-  bytesForProfile,
+  bytesForDevice,
   formatBytes,
   type AssetKind,
+  type Backend,
   type Profile,
 } from '../engine/manifest'
 
@@ -30,7 +31,8 @@ function groupStatuses(
 }
 
 export function ModelManager({ gpu, device }: Props) {
-  const manager = useModelManager()
+  const backend: Backend = gpu?.available ? 'webgpu' : 'wasm'
+  const manager = useModelManager(backend)
   const { profile, setProfile, progress, downloading, error, allReady, cacheSupported } = manager
 
   const groups = useMemo(() => groupStatuses(manager.statuses), [manager.statuses])
@@ -62,7 +64,7 @@ export function ModelManager({ gpu, device }: Props) {
             onClick={() => setProfile(p)}
           >
             <strong>{p === 'lite' ? 'Lite' : 'Full (cloning)'}</strong>
-            <span className="muted">{formatBytes(bytesForProfile(p))}</span>
+            <span className="muted">{formatBytes(bytesForDevice(backend, p))}</span>
           </button>
         ))}
       </div>

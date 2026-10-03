@@ -1,5 +1,5 @@
-import type { ModelFile, Profile } from './manifest'
-import { filesForProfile } from './manifest'
+import type { Backend, ModelFile, Profile } from './manifest'
+import { filesForDevice, filesForProfile } from './manifest'
 
 export const MODEL_CACHE_NAME = 'omnivoice-models-v1'
 
@@ -34,8 +34,8 @@ export interface CacheStatus {
   bytes: number
 }
 
-export async function inspectCache(profile: Profile): Promise<CacheStatus[]> {
-  const files = filesForProfile(profile)
+export async function inspectCache(profile: Profile, backend: Backend = 'webgpu'): Promise<CacheStatus[]> {
+  const files = filesForDevice(backend, profile)
   if (!supportsCache()) return files.map((file) => ({ file, cached: false, bytes: file.bytes }))
   const cache = await openModelCache()
   const out: CacheStatus[] = []
@@ -135,8 +135,8 @@ export class ModelDownloader {
     this.options = options
   }
 
-  async run(profile: Profile): Promise<void> {
-    await this.runFiles(filesForProfile(profile))
+  async run(profile: Profile, backend: Backend = 'webgpu'): Promise<void> {
+    await this.runFiles(filesForDevice(backend, profile))
   }
 
   async runFiles(files: ModelFile[]): Promise<void> {
