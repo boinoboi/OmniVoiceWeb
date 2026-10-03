@@ -6,6 +6,7 @@ export interface GpuInfo {
   description?: string
   maxBufferSize?: number
   maxStorageBufferBindingSize?: number
+  shaderF16?: boolean
   error?: string
 }
 
@@ -19,6 +20,7 @@ interface AdapterInfoLike {
 interface AdapterLike {
   info?: AdapterInfoLike
   limits?: { maxBufferSize?: number; maxStorageBufferBindingSize?: number }
+  features?: { has(feature: string): boolean }
 }
 
 interface GpuLike {
@@ -44,6 +46,7 @@ export async function detectGpu(): Promise<GpuInfo> {
       description: adapter.info?.description,
       maxBufferSize: adapter.limits?.maxBufferSize,
       maxStorageBufferBindingSize: adapter.limits?.maxStorageBufferBindingSize,
+      shaderF16: adapter.features?.has('shader-f16') ?? false,
     }
   } catch (error) {
     return { available: false, error: error instanceof Error ? error.message : String(error) }
@@ -81,6 +84,18 @@ export function detectDevice(): DeviceInfo {
     memoryGB: nav.deviceMemory,
     platform: navigator.platform || 'unknown',
   }
+}
+
+export type DeviceTier = 'phone' | 'laptop' | 'desktop'
+
+export function classifyTier(gpu: GpuInfo | null, device: DeviceInfo): DeviceTier {
+  if (device.mobile) return 'phone'
+  const descriptor = `${gpu?.vendor ?? ''} ${gpu?.architecture ?? ''} ${gpu?.description ?? ''}`
+  const discrete = /nvidia|geforce|rtx|radeon|amd|arc|apple m\d/i.test(descriptor)
+  const bigBuffer = (gpu?.maxBufferSize ?? 0) >= 1_500_000_000
+  const manyCores = (device.cores ?? 0) >= 8
+  if (discrete && (bigBuffer || manyCores)) return 'desktop'
+  return 'laptop'
 }
 
 export type FeasibilityLevel = 'good' | 'caution' | 'warn'

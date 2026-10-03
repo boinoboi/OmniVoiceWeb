@@ -9,7 +9,10 @@ export function configureOrt(): void {
   if (configured) return
   const base = import.meta.env.BASE_URL
   ort.env.wasm.wasmPaths = `${base}ort/`
-  ort.env.wasm.numThreads = 1
+  const isolated = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated
+  ort.env.wasm.numThreads = isolated
+    ? Math.min(4, Math.max(1, navigator.hardwareConcurrency || 1))
+    : 1
   ort.env.wasm.simd = true
   ort.env.logLevel = 'warning'
   configured = true

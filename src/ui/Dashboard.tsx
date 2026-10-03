@@ -28,12 +28,13 @@ export function Dashboard() {
         Precision ladder measured with round-trip Whisper WER (lower is better) and speech-band
         energy. The browser default is int4 — the smallest variant that still scores WER 0.
       </p>
+      <div className="table-scroll">
       <table className="results">
         <thead>
           <tr>
             <th>variant</th>
             <th>size</th>
-            <th>device</th>
+            <th className="col-device">device</th>
             <th>WER</th>
             <th>speech band</th>
           </tr>
@@ -43,13 +44,14 @@ export function Dashboard() {
             <tr key={v.name} className={v.name.startsWith('int4') ? 'highlight' : ''}>
               <td>{v.name}</td>
               <td className="mono">{formatBytes(v.size)}</td>
-              <td className="muted">{v.device}</td>
+              <td className="muted col-device">{v.device}</td>
               <td className="mono">{v.wer.toFixed(2)}</td>
               <td className="mono">{(v.speechBand * 100).toFixed(1)}%</td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
       <p className="muted small">
         Evaluation: {FOX} (2.56–2.64 s). int4 is 6.3× smaller than fp32 at equal task quality.
       </p>

@@ -1,14 +1,15 @@
-import type { DeviceInfo, GpuInfo } from '../engine/capabilities'
+import type { DeviceInfo, DeviceTier, GpuInfo } from '../engine/capabilities'
 import type { StorageEstimate } from '../engine/cache'
 import { formatBytes } from '../engine/manifest'
 
 interface Props {
   gpu: GpuInfo | null
   device: DeviceInfo
+  tier: DeviceTier
   storage?: StorageEstimate
 }
 
-export function SystemCheck({ gpu, device, storage }: Props) {
+export function SystemCheck({ gpu, device, tier, storage }: Props) {
   const deviceLabel =
     device.platform === 'unknown'
       ? device.mobile
@@ -43,6 +44,12 @@ export function SystemCheck({ gpu, device, storage }: Props) {
             {deviceLabel}
             {device.cores ? ` · ${device.cores} cores` : ''}
             {device.memoryGB ? ` · ~${device.memoryGB} GB` : ''}
+          </span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">Tier</span>
+          <span className="stat-value" style={{ textTransform: 'capitalize' }}>
+            {tier} · int4{gpu?.shaderF16 ? ' / f16' : ''}
           </span>
         </div>
         <div className="stat">

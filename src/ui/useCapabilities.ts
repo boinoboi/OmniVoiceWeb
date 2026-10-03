@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react'
-import { detectDevice, detectGpu, type DeviceInfo, type GpuInfo } from '../engine/capabilities'
+import {
+  classifyTier,
+  detectDevice,
+  detectGpu,
+  type DeviceInfo,
+  type DeviceTier,
+  type GpuInfo,
+} from '../engine/capabilities'
 import { estimateStorage, type StorageEstimate } from '../engine/cache'
 
 export interface Capabilities {
   gpu: GpuInfo | null
   device: DeviceInfo
+  tier: DeviceTier
   storage?: StorageEstimate
 }
 
@@ -26,5 +34,5 @@ export function useCapabilities(): Capabilities {
     }
   }, [])
 
-  return { gpu, device, storage }
+  return { gpu, device, tier: classifyTier(gpu, device), storage }
 }

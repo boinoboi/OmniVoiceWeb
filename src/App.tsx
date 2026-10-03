@@ -6,7 +6,7 @@ import { Dashboard } from './ui/Dashboard'
 import { useCapabilities } from './ui/useCapabilities'
 
 export default function App() {
-  const { gpu, device, storage } = useCapabilities()
+  const { gpu, device, tier, storage } = useCapabilities()
 
   return (
     <div className="app">
@@ -37,7 +37,7 @@ export default function App() {
       </div>
 
       <main className="grid">
-        <SystemCheck gpu={gpu} device={device} storage={storage} />
+        <SystemCheck gpu={gpu} device={device} tier={tier} storage={storage} />
         <ModelManager gpu={gpu} device={device} />
         <EngineLab gpu={gpu} />
         <Dashboard />
