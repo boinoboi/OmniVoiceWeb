@@ -1,0 +1,10 @@
+[
+  { "name": "pytorch-reference", "wav": "tools/golden/true_ref.wav", "text": "The quick brown fox jumps over the lazy dog." },
+  { "name": "python-fp32-bidir", "wav": "tools/golden/bidir_out.wav", "text": "The quick brown fox jumps over the lazy dog." },
+  { "name": "python-fp16-bidir", "wav": "tools/golden/fp16_out.wav", "text": "The quick brown fox jumps over the lazy dog." },
+  { "name": "python-int4-bidir", "wav": "tools/golden/int4_out.wav", "text": "The quick brown fox jumps over the lazy dog." },
+  { "name": "browser-fp32-bidir", "wav": "tools/golden/browser_fox.wav", "text": "The quick brown fox jumps over the lazy dog." },
+  { "name": "browser-int4-bidir", "wav": "tools/golden/browser_int4.wav", "text": "The quick brown fox jumps over the lazy dog." },
+  { "name": "browser-int4-short", "wav": "tools/golden/browser_hello.wav", "text": "Hello world." },
+  { "name": "python-int4-clone", "wav": "tools/golden/clone_out.wav", "text": "This is a cloned voice speaking now." }
+]

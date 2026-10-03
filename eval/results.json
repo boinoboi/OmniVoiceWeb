@@ -1,0 +1,90 @@
+[
+  {
+    "name": "pytorch-reference",
+    "wav": "tools/golden/true_ref.wav",
+    "duration_s": 2.64,
+    "rms": 0.0651,
+    "peak": 0.5,
+    "centroid_hz": 2710.1727,
+    "speech_band": 0.9017,
+    "asr": "The quick brown fox jumps over the lazy dog.",
+    "wer": 0.0
+  },
+  {
+    "name": "python-fp32-bidir",
+    "wav": "tools/golden/bidir_out.wav",
+    "duration_s": 2.64,
+    "rms": 0.1315,
+    "peak": 0.948,
+    "centroid_hz": 3057.9065,
+    "speech_band": 0.7646,
+    "asr": "The quick brown fox jumps over the lazy dog.",
+    "wer": 0.0
+  },
+  {
+    "name": "python-fp16-bidir",
+    "wav": "tools/golden/fp16_out.wav",
+    "duration_s": 2.64,
+    "rms": 0.1337,
+    "peak": 0.9189,
+    "centroid_hz": 3073.547,
+    "speech_band": 0.6872,
+    "asr": "The quick brown fox jumps over the lazy dog.",
+    "wer": 0.0
+  },
+  {
+    "name": "python-int4-bidir",
+    "wav": "tools/golden/int4_out.wav",
+    "duration_s": 2.64,
+    "rms": 0.2034,
+    "peak": 1.0,
+    "centroid_hz": 2532.5037,
+    "speech_band": 0.8547,
+    "asr": "The quick brown fox jumps over the lazy dog.",
+    "wer": 0.0
+  },
+  {
+    "name": "browser-fp32-bidir",
+    "wav": "tools/golden/browser_fox.wav",
+    "duration_s": 2.56,
+    "rms": 0.1252,
+    "peak": 0.8622,
+    "centroid_hz": 2658.4693,
+    "speech_band": 0.87,
+    "asr": "The quick brown fox jumps over the lazy dog.",
+    "wer": 0.0
+  },
+  {
+    "name": "browser-int4-bidir",
+    "wav": "tools/golden/browser_int4.wav",
+    "duration_s": 2.56,
+    "rms": 0.1324,
+    "peak": 0.7409,
+    "centroid_hz": 2384.6486,
+    "speech_band": 0.8593,
+    "asr": "The quick brown fox jumps over the lazy dog.",
+    "wer": 0.0
+  },
+  {
+    "name": "browser-int4-short",
+    "wav": "tools/golden/browser_hello.wav",
+    "duration_s": 1.44,
+    "rms": 0.2429,
+    "peak": 0.6308,
+    "centroid_hz": 1689.28,
+    "speech_band": 0.0428,
+    "asr": ".  .  .  .",
+    "wer": 2.0
+  },
+  {
+    "name": "python-int4-clone",
+    "wav": "tools/golden/clone_out.wav",
+    "duration_s": 2.4,
+    "rms": 0.2446,
+    "peak": 0.9468,
+    "centroid_hz": 1960.6158,
+    "speech_band": 0.3798,
+    "asr": "This is a Clone Fox jumps over speaking now.",
+    "wer": 0.5714
+  }
+]

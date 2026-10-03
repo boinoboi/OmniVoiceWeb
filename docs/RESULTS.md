@@ -209,6 +209,29 @@ sweet spot: 6.3× smaller than fp32 at equal ASR. Findings:
 - **Duration estimator fixed:** ported the reference `RuleDurationEstimator` power-curve boost
   (`low_threshold=50`, boost 3). The fox sentence now estimates 64–65 frames vs the reference 66.
 
+## Task-level evaluation (round-trip WER + spectral metrics)
+
+`tools/evaluate.py --manifest eval/manifest.json` (faster-whisper `base`, CPU int8). WER is a
+normalized word error rate (0 = exact). Rows generated across the precision ladder and both
+runtimes for the sentence "The quick brown fox jumps over the lazy dog.".
+
+| variant | dur | centroid | speech-band | ASR round-trip | WER |
+|---|---|---|---|---|---|
+| PyTorch reference | 2.64 s | 2710 Hz | 90.2% | exact | **0.00** |
+| Python fp32 bidir | 2.64 s | 3058 Hz | 76.5% | exact | **0.00** |
+| Python fp16 bidir | 2.64 s | 3074 Hz | 68.7% | exact | **0.00** |
+| Python int4 bidir | 2.64 s | 2533 Hz | 85.5% | exact | **0.00** |
+| Browser fp32 bidir | 2.56 s | 2658 Hz | 87.0% | exact | **0.00** |
+| Browser int4 bidir | 2.56 s | 2385 Hz | 85.9% | exact | **0.00** |
+| Browser int4, "Hello world." | 1.44 s | 1689 Hz | 4.3% | — | 2.00 |
+| Python int4 clone (synthetic ref) | 2.40 s | 1961 Hz | 38.0% | "This is a Clone Fox jumps over speaking now." | 0.57 |
+
+**Reading:** every fp32/fp16/int4 variant, in Python *and* in the browser, reproduces the reference
+sentence with **WER 0** — the runtime port and int4 quantization are lossless at the task level for
+normal-length input. Two open items match prior art: **short auto-voice** ("Hello world.") collapses
+to non-speech, and **cloning from a synthetic (model-generated) reference** leaks reference words
+(needs a clean human reference and reference-exact encode alignment).
+
 ## Export defects found
 
 - `audio_tokenizer/fp16/semantic_encoder.onnx` is **malformed**: a `LayerNormalization` node is

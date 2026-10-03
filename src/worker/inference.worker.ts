@@ -1,3 +1,4 @@
+import { IdleReleaser } from '../engine/memory'
 import { Synthesizer, type SynthProgress } from '../engine/pipeline'
 import type { Device } from '../engine/ort'
 
@@ -8,6 +9,15 @@ interface WorkerScope {
 
 const scope = self as unknown as WorkerScope
 const synth = new Synthesizer()
+
+const idle = new IdleReleaser({
+  timeoutMs: 5 * 60_000,
+  onRelease: async () => {
+    if (!synth.loaded) return
+    await synth.dispose()
+    scope.postMessage({ type: 'notice', message: 'Released models — GPU memory freed after idling' })
+  },
+})
 
 type Incoming =
   | { type: 'load'; device: Device }
@@ -45,8 +55,10 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
           throw error
         }
       }
+      idle.touch()
       scope.postMessage({ type: 'loaded', device: synth.device })
     } else if (message.type === 'generate') {
+      idle.touch()
       const result = await synth.generateStream(
         message.text,
         {
@@ -81,6 +93,7 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
         [result.samples.buffer],
       )
     } else if (message.type === 'encode') {
+      idle.touch()
       if (!synth.loaded) await synth.load(message.device, 'lite', progress)
       await synth.loadEncoders(progress)
       const reference = await synth.encodeReference(message.samples)
