@@ -233,6 +233,17 @@ export class Synthesizer {
     }
   }
 
+  async decoderSelfTest(): Promise<SynthResult> {
+    if (!this.decoder) throw new Error('Decoder is not loaded')
+    const frames = 25
+    const codes = new Int32Array(8 * frames)
+    for (let i = 0; i < codes.length; i++) codes[i] = (i * 37) % 100
+    const tensor = new this.decoder.ort.Tensor('int64', toBigInt64(codes), [8, 1, frames])
+    const output = await this.decoder.session.run({ codes: tensor })
+    const samples = toFloat32(output.waveform_24k)
+    return { samples, sampleRate: 24000, frames, textTokens: [], milliseconds: 0 }
+  }
+
   async generateStream(
     text: string,
     options: SynthOptions = {},

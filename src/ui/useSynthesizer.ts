@@ -274,6 +274,39 @@ export function useSynthesizer(
     setReferenceState(ref)
   }, [])
 
+  const selfTest = useCallback(async () => {
+    setView((v) => ({ ...v, phase: 'loading', stage: 'load', ratio: 0, detail: 'self-test', error: null }))
+    try {
+      armWatchdog()
+      await send({ type: 'load', device, precision, safeDecoder })
+      const result = (await send({ type: 'selftest' })) as WorkerMessage
+      if (!result.samples) throw new Error('Decoder self-test returned no audio')
+      const rate = result.sampleRate ?? 24000
+      const url = publish([result.samples], rate)
+      const metrics = analyzeAudio(result.samples, rate)
+      clearWatchdog()
+      setView((v) => ({
+        ...v,
+        phase: 'ready',
+        audioUrl: url,
+        frames: result.frames ?? 0,
+        milliseconds: 0,
+        ratio: 1,
+        metrics,
+        ttfa: null,
+        rtf: null,
+        detail: 'decoder self-test',
+      }))
+    } catch (error) {
+      clearWatchdog()
+      setView((v) => ({
+        ...v,
+        phase: 'error',
+        error: error instanceof Error ? error.message : String(error),
+      }))
+    }
+  }, [device, precision, safeDecoder, send, publish, armWatchdog, clearWatchdog])
+
   const clearReference = useCallback(() => {
     referenceRef.current = null
     setReferenceState(null)
@@ -287,5 +320,5 @@ export function useSynthesizer(
     }
   }, [clearWatchdog])
 
-  return { view, generate, encodeReference, setReference, reference, clearReference }
+  return { view, generate, encodeReference, setReference, reference, clearReference, selfTest }
 }

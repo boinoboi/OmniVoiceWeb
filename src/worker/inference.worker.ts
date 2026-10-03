@@ -34,13 +34,18 @@ type Incoming =
       refText?: string
     }
   | { type: 'encode'; samples: Float32Array; device: Device }
+  | { type: 'selftest' }
   | { type: 'dispose' }
 
 const progress = (p: SynthProgress) => scope.postMessage({ type: 'progress', progress: p })
 
 scope.onmessage = async (event: MessageEvent<Incoming>) => {
   const message = event.data
-  const isWork = message.type === 'load' || message.type === 'generate' || message.type === 'encode'
+    const isWork =
+      message.type === 'load' ||
+      message.type === 'generate' ||
+      message.type === 'encode' ||
+      message.type === 'selftest'
   if (isWork) idle.cancel()
   try {
     if (message.type === 'load') {
@@ -114,6 +119,18 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
       scope.postMessage(
         { type: 'encoded', codes: reference.data, frames: reference.frames, rms: reference.rms },
         [reference.data.buffer],
+      )
+    } else if (message.type === 'selftest') {
+      const result = await synth.decoderSelfTest()
+      scope.postMessage(
+        {
+          type: 'result',
+          samples: result.samples,
+          sampleRate: result.sampleRate,
+          frames: result.frames,
+          milliseconds: 0,
+        },
+        [result.samples.buffer],
       )
     } else if (message.type === 'dispose') {
       await synth.dispose()

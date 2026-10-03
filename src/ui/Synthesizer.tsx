@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { encodeWav } from '../engine/audio'
 import type { Precision } from '../engine/manifest'
 import { sanitizeForTts } from '../engine/sanitize'
 import { SUPPORTED_SCRIPTS, transliterate } from '../engine/transliterate'
@@ -38,8 +39,16 @@ export function Synthesizer({ device }: { device: Device }) {
   const [text, setText] = useState(EXAMPLES[1])
   const [precision, setPrecision] = useState<Precision>('int4')
   const [safeDecoder, setSafeDecoder] = useState(false)
-  const { view, generate, encodeReference, setReference, reference, clearReference } =
+  const { view, generate, encodeReference, setReference, reference, clearReference, selfTest } =
     useSynthesizer(device, precision, safeDecoder)
+
+  const playTone = (): void => {
+    const rate = 24000
+    const samples = new Float32Array(rate)
+    for (let i = 0; i < samples.length; i++) samples[i] = 0.3 * Math.sin((2 * Math.PI * 440 * i) / rate)
+    const url = URL.createObjectURL(new Blob([encodeWav(samples, rate)], { type: 'audio/wav' }))
+    void new Audio(url).play()
+  }
   const [refText, setRefText] = useState('')
   const [refStatus, setRefStatus] = useState<string | null>(null)
   const [consented, setConsented] = useState(false)
@@ -201,6 +210,12 @@ export function Synthesizer({ device }: { device: Device }) {
             Download WAV
           </a>
         )}
+        <button className="btn ghost" type="button" onClick={playTone}>
+          Test sound
+        </button>
+        <button className="btn ghost" type="button" disabled={busy} onClick={() => void selfTest()}>
+          Test decoder
+        </button>
         {busy && (
           <span className="muted small">
             {view.stage}
@@ -298,7 +313,7 @@ export function Synthesizer({ device }: { device: Device }) {
           {view.rtf !== null &&
             ` RTF ${view.rtf.toFixed(2)}× (${view.rtf < 1 ? 'faster' : 'slower'} than real-time).`}
           {view.metrics &&
-            ` Speech band ${(view.metrics.speechBand * 100).toFixed(0)}% · centroid ${view.metrics.centroidHz.toFixed(0)} Hz.`}{' '}
+            ` RMS ${view.metrics.rms.toFixed(3)} · peak ${view.metrics.peak.toFixed(3)} · speech band ${(view.metrics.speechBand * 100).toFixed(0)}%.`}{' '}
           Audio never left your device.
         </p>
       )}
