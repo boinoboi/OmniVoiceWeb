@@ -24,8 +24,14 @@ interface AdapterLike {
   features?: { has(feature: string): boolean }
 }
 
+interface AdapterRequestOptions {
+  powerPreference?: string
+  forceFallbackAdapter?: boolean
+  compatibilityMode?: boolean
+}
+
 interface GpuLike {
-  requestAdapter(options?: { powerPreference?: string; forceFallbackAdapter?: boolean }): Promise<AdapterLike | null>
+  requestAdapter(options?: AdapterRequestOptions): Promise<AdapterLike | null>
 }
 
 export async function detectGpu(): Promise<GpuInfo> {
@@ -41,10 +47,7 @@ export async function detectGpu(): Promise<GpuInfo> {
     }
   }
 
-  const request = async (options?: {
-    powerPreference?: string
-    forceFallbackAdapter?: boolean
-  }): Promise<AdapterLike | null | undefined> => {
+  const request = async (options?: AdapterRequestOptions): Promise<AdapterLike | null | undefined> => {
     try {
       return await gpu.requestAdapter(options)
     } catch {
@@ -52,10 +55,11 @@ export async function detectGpu(): Promise<GpuInfo> {
     }
   }
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     const adapter =
-      (await request({ powerPreference: 'high-performance' })) ??
       (await request()) ??
+      (await request({ powerPreference: 'high-performance' })) ??
+      (await request({ compatibilityMode: true })) ??
       (await request({ forceFallbackAdapter: true }))
     if (adapter) {
       return {
@@ -70,7 +74,7 @@ export async function detectGpu(): Promise<GpuInfo> {
         shaderF16: adapter.features?.has('shader-f16') ?? false,
       }
     }
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    await new Promise((resolve) => setTimeout(resolve, 400))
   }
   return {
     available: false,

@@ -103,6 +103,22 @@ export class Synthesizer {
     this.llm = await createCachedSession(PATHS.llm, device)
     this.heads = await createCachedSession(PATHS.heads, device)
     this.decoder = await createCachedSession(PATHS.decoder, device)
+    await this.warmup()
+  }
+
+  private async warmup(): Promise<void> {
+    if (!this.embeddings || !this.llm || !this.heads || !this.decoder) return
+    try {
+      const step = createBackboneStep(this.embeddings.ort, this.embeddings, this.llm, this.heads, {
+        llmFloat16: PATHS.llm.includes('fp16'),
+      })
+      await step(new Int32Array(8 * 4).fill(1024), new Uint8Array(4).fill(1), 4, 0, 1)
+      await this.decoder.session.run({
+        codes: new this.embeddings.ort.Tensor('int64', new BigInt64Array(8 * 2), [8, 1, 2]),
+      })
+    } catch {
+      void 0
+    }
   }
 
   get cloningReady(): boolean {

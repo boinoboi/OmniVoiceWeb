@@ -13,6 +13,48 @@ export async function moduleFor(device: Device): Promise<OrtModule> {
   return wasmModule
 }
 
+interface NavigatorGpuLike {
+  requestAdapter(options?: {
+    powerPreference?: string
+    forceFallbackAdapter?: boolean
+    compatibilityMode?: boolean
+  }): Promise<object | null>
+}
+
+export async function ensureWebGpuAdapter(module: OrtModule): Promise<void> {
+  const gpu = (navigator as unknown as { gpu?: NavigatorGpuLike }).gpu
+  if (!gpu) throw new Error('navigator.gpu is undefined')
+  const env = module.env as unknown as { webgpu?: { adapter?: object } }
+  env.webgpu = env.webgpu ?? {}
+  if (env.webgpu.adapter) return
+
+  const strategies: Array<[string, Parameters<NavigatorGpuLike['requestAdapter']>[0]]> = [
+    ['default', undefined],
+    ['high-performance', { powerPreference: 'high-performance' }],
+    ['low-power', { powerPreference: 'low-power' }],
+    ['compatibility', { compatibilityMode: true }],
+    ['fallback', { forceFallbackAdapter: true }],
+  ]
+  const errors: string[] = []
+  for (let round = 0; round < 3; round++) {
+    for (const [name, options] of strategies) {
+      try {
+        const adapter = await gpu.requestAdapter(options)
+        if (adapter) {
+          env.webgpu.adapter = adapter
+          return
+        }
+      } catch (error) {
+        errors.push(`${name}: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300))
+  }
+  throw new Error(
+    `No WebGPU adapter returned for any request (tried default/high-power/low-power/compatibility/fallback). ${errors.slice(-2).join('; ')}`,
+  )
+}
+
 export function configureOrt(module: OrtModule): void {
   if (configured.has(module)) return
   module.env.wasm.wasmPaths = `${import.meta.env.BASE_URL}ort/`
@@ -46,6 +88,7 @@ export async function createCachedSession(
 ): Promise<SessionHandle> {
   const module = await moduleFor(device)
   configureOrt(module)
+  if (device === 'webgpu') await ensureWebGpuAdapter(module)
 
   const { model, bytes } = await loadModel(onnxPath)
   const options: ortWebgpu.InferenceSession.SessionOptions = {
