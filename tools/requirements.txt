@@ -1,0 +1,6 @@
+numpy
+onnxruntime>=1.20
+soundfile
+scipy
+transformers>=4.44
+huggingface_hub

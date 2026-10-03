@@ -29,5 +29,8 @@ public/ort
 # Python golden-vector harness
 tools/__pycache__
 tools/.venv
+tools/models
 tools/golden/*.npy
 tools/golden/*.wav
+!tools/golden/*.npz
+!tools/golden/*.json

@@ -1,0 +1,721 @@
+{
+  "seed": 1234,
+  "cases": [
+    {
+      "model": "int4/audio_heads_decoder.onnx",
+      "inputs": [
+        {
+          "name": "hidden_states",
+          "dtype": "float32",
+          "shape": [
+            1,
+            16,
+            1024
+          ],
+          "file": "heads_input.bin"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "logits",
+          "dtype": "float32",
+          "shape": [
+            1,
+            8,
+            16,
+            1025
+          ],
+          "file": "heads_output.bin"
+        }
+      ]
+    },
+    {
+      "model": "int4/audio_embeddings_encoder.onnx",
+      "inputs": [
+        {
+          "name": "input_ids",
+          "dtype": "int64",
+          "shape": [
+            1,
+            8,
+            20
+          ],
+          "file": "embeddings_input_ids.bin"
+        },
+        {
+          "name": "audio_mask",
+          "dtype": "bool",
+          "shape": [
+            1,
+            20
+          ],
+          "file": "embeddings_audio_mask.bin"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "inputs_embeds",
+          "dtype": "float32",
+          "shape": [
+            1,
+            20,
+            1024
+          ],
+          "file": "embeddings_output.bin"
+        }
+      ]
+    },
+    {
+      "model": "int4/llm_decoder.onnx",
+      "inputs": [
+        {
+          "name": "inputs_embeds",
+          "dtype": "float32",
+          "shape": [
+            1,
+            20,
+            1024
+          ],
+          "file": "backbone_input.bin"
+        },
+        {
+          "name": "attention_mask",
+          "ones": true,
+          "shape": [
+            1,
+            20
+          ],
+          "dtype": "int64"
+        },
+        {
+          "name": "past_key_values.0.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.1.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.2.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.3.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.4.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.5.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.6.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.7.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.8.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.9.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.10.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.11.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.12.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.13.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.14.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.15.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.16.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.17.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.18.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.19.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.20.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.21.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.22.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.23.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.24.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.25.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.26.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.27.key",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.0.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.1.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.2.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.3.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.4.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.5.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.6.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.7.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.8.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.9.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.10.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.11.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.12.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.13.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.14.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.15.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.16.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.17.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.18.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.19.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.20.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.21.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.22.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.23.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.24.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.25.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.26.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "past_key_values.27.value",
+          "zeros": true,
+          "shape": [
+            1,
+            8,
+            0,
+            128
+          ],
+          "dtype": "float32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "hidden_states",
+          "dtype": "float32",
+          "shape": [
+            1,
+            20,
+            1024
+          ],
+          "file": "backbone_output.bin"
+        }
+      ]
+    }
+  ]
+}

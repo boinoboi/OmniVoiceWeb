@@ -87,7 +87,11 @@ unmask loop**, 24 kHz. Confirmed ONNX I/O:
 ## Roadmap + active status
 
 Full plan: `docs/PLAN.md`. Differentiation + prior art: `docs/PRIOR_ART.md`.
-Architecture: `docs/ARCHITECTURE.md`. Milestones tracked in the todo list.
+Architecture: `docs/ARCHITECTURE.md`. Results so far: `docs/RESULTS.md`.
+Milestones tracked in the todo list.
+
+**Status:** Phase 1 done (golden vectors + ORT-web parity). Next: Phase 2 Higgs codec.
+Python harness: `tools/.venv` (Py 3.12), fixtures in `tools/golden/`, models in `tools/models/`.
 
 **Checkpoints where the agent must message the user:** after parity proof, after first real audio,
 after greedy-vs-CFG and int4-vs-fp16 A/B, after quantization variants, and before real-GPU/mobile

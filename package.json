@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke": "node scripts/smoke.mjs",
+    "parity": "node scripts/parity.mjs",
     "ort:copy": "node scripts/copy-ort.mjs"
   },
   "dependencies": {
