@@ -1,6 +1,8 @@
 export const HF_REPO = 'onnx-community/OmniVoice-Onnx'
 export const HF_REVISION = 'main'
 export const HF_BASE = `https://huggingface.co/${HF_REPO}/resolve/${HF_REVISION}/`
+export const BIDIR_BASE =
+  'https://huggingface.co/asdasdsadscxzxc/omnivoice-web-bidir/resolve/main/'
 
 export type Profile = 'lite' | 'full'
 export type AssetKind = 'backbone' | 'tokenizer' | 'decoder' | 'encoder'
@@ -20,12 +22,19 @@ const file = (
   requires: Profile = 'lite',
 ): ModelFile => ({ path, url: HF_BASE + path, bytes, kind, requires })
 
+const bidir = (
+  path: string,
+  bytes: number,
+  kind: AssetKind,
+  requires: Profile = 'lite',
+): ModelFile => ({ path, url: BIDIR_BASE + path, bytes, kind, requires })
+
 export const MODEL_FILES: ModelFile[] = [
   file('int4/audio_embeddings_encoder.onnx', 2363, 'backbone'),
   file('int4/audio_embeddings_encoder.onnx.data', 87160832, 'backbone'),
   file('int4/audio_heads_decoder.onnx', 4462676, 'backbone'),
-  file('int4/llm_decoder.onnx', 298798, 'backbone'),
-  file('int4/llm_decoder.onnx.data', 296484864, 'backbone'),
+  bidir('llm_decoder_fp16.onnx', 4885288, 'backbone'),
+  bidir('llm_decoder_fp16.onnx.data', 880934912, 'backbone'),
 
   file('int4/tokenizer.json', 11423986, 'tokenizer'),
   file('int4/tokenizer_config.json', 533, 'tokenizer'),

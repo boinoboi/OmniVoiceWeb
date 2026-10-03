@@ -1,10 +1,11 @@
-import { iterativeUnmask } from './algorithm'
+import { iterativeUnmaskCfg } from './algorithm'
 import { createBackboneStep } from './backbone'
 import { ensureCached } from './cache'
+import { estimateTargetTokens } from './duration'
 import { toFloat32 } from './dtype'
 import { filesForProfile, type Profile } from './manifest'
 import { createCachedSession, ort, releaseSession, type Device, type SessionHandle } from './ort'
-import { encodeText } from './tokenizer'
+import { prepareInputs } from './prompt'
 
 export interface SynthProgress {
   stage: 'download' | 'load' | 'tokenize' | 'generate' | 'decode' | 'done'
@@ -15,6 +16,10 @@ export interface SynthProgress {
 export interface SynthOptions {
   numSteps?: number
   numAudioTokens?: number
+  lang?: string
+  instruct?: string
+  refText?: string
+  refCodes?: { data: Int32Array; frames: number }
 }
 
 
@@ -28,7 +33,7 @@ export interface SynthResult {
 
 const PATHS = {
   embeddings: 'int4/audio_embeddings_encoder.onnx',
-  llm: 'int4/llm_decoder.onnx',
+  llm: 'llm_decoder_fp16.onnx',
   heads: 'int4/audio_heads_decoder.onnx',
   decoder: 'audio_tokenizer/higgs_decoder.onnx',
 } as const
@@ -91,27 +96,36 @@ export class Synthesizer {
     }
     const start = performance.now()
 
-    onProgress?.({ stage: 'tokenize', ratio: 0 })
-    const textTokens = await encodeText(text)
-    const frames = options.numAudioTokens ?? estimateFrames(text)
+    const frames = options.numAudioTokens ?? estimateTargetTokens(text)
     const steps = options.numSteps ?? 32
+
+    onProgress?.({ stage: 'tokenize', ratio: 0 })
+    const prepared = await prepareInputs(text, frames, {
+      lang: options.lang,
+      instruct: options.instruct,
+      refText: options.refText,
+      refCodes: options.refCodes,
+    })
 
     const step = createBackboneStep(ort, this.embeddings, this.llm, this.heads)
     onProgress?.({ stage: 'generate', ratio: 0 })
-    const generation = await iterativeUnmask(
-      { textTokens, numAudioTokens: frames, numSteps: steps },
+    const codes = await iterativeUnmaskCfg(
+      prepared,
+      frames,
+      steps,
+      { guidanceScale: 2, tShift: 0.1, layerPenalty: 5, positionTemperature: 5, seed: 0 },
       step,
       (index, remaining) =>
         onProgress?.({
           stage: 'generate',
-          ratio: (index + 1) / steps,
+          ratio: index / steps,
           detail: `${remaining} frames masked`,
         }),
     )
 
     onProgress?.({ stage: 'decode', ratio: 0 })
-    const codes = new ort.Tensor('int64', toBigInt64(generation.codes), [8, 1, frames])
-    const output = await this.decoder.session.run({ codes })
+    const codesTensor = new ort.Tensor('int64', toBigInt64(codes), [8, 1, frames])
+    const output = await this.decoder.session.run({ codes: codesTensor })
     const samples = toFloat32(output.waveform_24k)
 
     onProgress?.({ stage: 'done', ratio: 1 })
@@ -119,7 +133,7 @@ export class Synthesizer {
       samples,
       sampleRate: 24000,
       frames,
-      textTokens,
+      textTokens: [],
       milliseconds: performance.now() - start,
     }
   }
