@@ -33,8 +33,12 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
       try {
         await synth.load(message.device, 'lite', progress)
       } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error)
         if (message.device !== 'wasm') {
-          scope.postMessage({ type: 'notice', message: 'WebGPU failed, falling back to WASM' })
+          scope.postMessage({
+            type: 'notice',
+            message: `WebGPU failed (${detail.slice(0, 160)}) — falling back to WASM`,
+          })
           await synth.dispose()
           await synth.load('wasm', 'lite', progress)
         } else {

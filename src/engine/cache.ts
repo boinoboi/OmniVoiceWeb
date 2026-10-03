@@ -188,6 +188,35 @@ export class ModelDownloader {
     total: number,
     emit: (u: DownloadUpdate) => void,
   ): Promise<void> {
+    const attempts = 4
+    let lastError: unknown
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        await this.fetchOnce(file, total, emit)
+        return
+      } catch (error) {
+        lastError = error
+        if (this.options.signal?.aborted) throw error
+        this.loadedByPath.set(file.path, 0)
+        emit({
+          file,
+          fileLoaded: 0,
+          fileTotal: file.bytes,
+          overallLoaded: this.overall(total),
+          overallTotal: total,
+          phase: 'start',
+        })
+        await new Promise((resolve) => setTimeout(resolve, 400 * attempt))
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error(String(lastError))
+  }
+
+  private async fetchOnce(
+    file: ModelFile,
+    total: number,
+    emit: (u: DownloadUpdate) => void,
+  ): Promise<void> {
     if (await isCached(file.path)) return
     const res = await fetch(file.url, { signal: this.options.signal })
     if (!res.ok) throw new Error(`HTTP ${res.status} when downloading ${file.path}`)
