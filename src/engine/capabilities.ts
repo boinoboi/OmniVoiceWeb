@@ -8,7 +8,23 @@ export interface GpuInfo {
   maxBufferSize?: number
   maxStorageBufferBindingSize?: number
   shaderF16?: boolean
+  renderer?: string
   error?: string
+}
+
+function webglRenderer(): string | undefined {
+  if (typeof document === 'undefined') return undefined
+  try {
+    const canvas = document.createElement('canvas')
+    const gl = (canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null
+    if (!gl) return undefined
+    const ext = gl.getExtension('WEBGL_debug_renderer_info')
+    if (ext) return String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL))
+    return String(gl.getParameter(gl.RENDERER))
+  } catch {
+    return undefined
+  }
 }
 
 interface AdapterInfoLike {
@@ -80,6 +96,7 @@ export async function detectGpu(): Promise<GpuInfo> {
   return {
     available: false,
     navigatorGpu: true,
+    renderer: webglRenderer(),
     error: 'requestAdapter() returned no adapter (WebGPU present but no compatible GPU/driver)',
   }
 }

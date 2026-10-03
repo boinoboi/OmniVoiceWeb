@@ -65,7 +65,15 @@ export function SystemCheck({ gpu, device, tier, storage }: Props) {
           </span>
         </div>
       </div>
-      {gpu && !gpu.available && <p className="muted small">{gpu.error}</p>}
+      {gpu && !gpu.available && (
+        <p className="notice caution">
+          {gpu.error}
+          {gpu.renderer ? ` GPU renderer: ${gpu.renderer}.` : ''}
+          {gpu.navigatorGpu
+            ? ' Chrome only enables WebGPU by default for Qualcomm and ARM GPUs — AMD/Exynos Xclipse (and others) must be force-enabled: open chrome://flags/#enable-unsafe-webgpu and chrome://flags/#ignore-gpu-blocklist, set both Enabled, relaunch Chrome. If that fails, try Chrome Canary.'
+            : ' Update to Chrome 121+ (Android 12+) or Safari 18+.'}
+        </p>
+      )}
     </section>
   )
 }
