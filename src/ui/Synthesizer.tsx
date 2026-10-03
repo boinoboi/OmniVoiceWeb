@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { transliterate } from '../engine/transliterate'
 import { loadVoices, type PrecomputedVoice } from '../engine/voices'
 import { useSynthesizer } from './useSynthesizer'
 import type { Device } from '../engine/ort'
@@ -38,9 +39,19 @@ export function Synthesizer({ device }: { device: Device }) {
   const [refText, setRefText] = useState('')
   const [refStatus, setRefStatus] = useState<string | null>(null)
   const [consented, setConsented] = useState(false)
+  const [translit, setTranslit] = useState(true)
   const [voices, setVoices] = useState<PrecomputedVoice[]>([])
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [elapsed, setElapsed] = useState(0)
+  const converted = useMemo(() => transliterate(text), [text])
   const busy = view.phase === 'loading' || view.phase === 'generating'
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!busy) return
+    const start = performance.now()
+    const id = setInterval(() => setElapsed((performance.now() - start) / 1000), 200)
+    return () => clearInterval(id)
+  }, [busy])
 
   useEffect(() => {
     void loadVoices(`${import.meta.env.BASE_URL}voices.json`).then(setVoices)
@@ -98,6 +109,17 @@ export function Synthesizer({ device }: { device: Device }) {
         consistent voice across the language boundary.
       </p>
 
+      <label className="consent">
+        <input type="checkbox" checked={translit} onChange={(e) => setTranslit(e.target.checked)} />
+        <span>Convert romanized Hindi/Marathi → Devanagari (keeps English words)</span>
+      </label>
+      {translit && converted !== text && (
+        <div className="preview">
+          <span className="preview-label">Devanagari preview — this is what the model speaks</span>
+          <p>{converted}</p>
+        </div>
+      )}
+
       {device === 'wasm' && (
         <p className="notice caution">
           WebGPU isn't available in this browser, so generation runs on the CPU (WASM) in a
@@ -113,7 +135,11 @@ export function Synthesizer({ device }: { device: Device }) {
       </div>
 
       <div className="actions">
-        <button className="btn primary" disabled={busy || !text.trim()} onClick={() => void generate(text)}>
+        <button
+          className="btn primary"
+          disabled={busy || !text.trim()}
+          onClick={() => void generate(translit ? converted : text)}
+        >
           {busy ? 'Working…' : 'Generate'}
         </button>
         {view.audioUrl && (
@@ -121,7 +147,12 @@ export function Synthesizer({ device }: { device: Device }) {
             Download WAV
           </a>
         )}
-        {busy && <span className="muted small">{view.stage}{view.detail ? ` · ${view.detail}` : ''}</span>}
+        {busy && (
+          <span className="muted small">
+            {view.stage}
+            {view.detail ? ` · ${view.detail}` : ''} · {elapsed.toFixed(1)}s
+          </span>
+        )}
       </div>
 
       {view.audioUrl && <audio className="player" controls src={view.audioUrl} />}
@@ -208,9 +239,10 @@ export function Synthesizer({ device }: { device: Device }) {
 
       {view.phase === 'ready' && (
         <p className="muted small">
-          Generated {view.frames} frames in {(view.milliseconds / 1000).toFixed(1)}s on {device}.
-          {view.ttfa !== null && ` TTFA ${view.ttfa.toFixed(1)}s.`}
-          {view.rtf !== null && ` RTF ${view.rtf.toFixed(2)}.`}
+          Generated {view.frames} frames in {(view.milliseconds / 1000).toFixed(2)}s on {device}.
+          {view.ttfa !== null && ` TTFA ${view.ttfa.toFixed(2)}s.`}
+          {view.rtf !== null &&
+            ` RTF ${view.rtf.toFixed(2)}× (${view.rtf < 1 ? 'faster' : 'slower'} than real-time).`}
           {view.metrics &&
             ` Speech band ${(view.metrics.speechBand * 100).toFixed(0)}% · centroid ${view.metrics.centroidHz.toFixed(0)} Hz.`}{' '}
           Audio never left your device.
