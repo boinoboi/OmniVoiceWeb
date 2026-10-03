@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { transliterate } from '../engine/transliterate'
+import { sanitizeForTts } from '../engine/sanitize'
+import { SUPPORTED_SCRIPTS, transliterate } from '../engine/transliterate'
 import { loadVoices, type PrecomputedVoice } from '../engine/voices'
 import { useSynthesizer } from './useSynthesizer'
 import type { Device } from '../engine/ort'
@@ -40,9 +41,14 @@ export function Synthesizer({ device }: { device: Device }) {
   const [refStatus, setRefStatus] = useState<string | null>(null)
   const [consented, setConsented] = useState(false)
   const [translit, setTranslit] = useState(true)
+  const [cleanup, setCleanup] = useState(true)
+  const [script, setScript] = useState('devanagari')
   const [voices, setVoices] = useState<PrecomputedVoice[]>([])
   const [elapsed, setElapsed] = useState(0)
-  const converted = useMemo(() => transliterate(text), [text])
+  const prepared = useMemo(() => {
+    const sanitized = cleanup ? sanitizeForTts(text) : text
+    return translit ? transliterate(sanitized, { keepEnglish: true, script }) : sanitized
+  }, [text, cleanup, translit, script])
   const busy = view.phase === 'loading' || view.phase === 'generating'
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -109,14 +115,33 @@ export function Synthesizer({ device }: { device: Device }) {
         consistent voice across the language boundary.
       </p>
 
-      <label className="consent">
-        <input type="checkbox" checked={translit} onChange={(e) => setTranslit(e.target.checked)} />
-        <span>Convert romanized Hindi/Marathi → Devanagari (keeps English words)</span>
-      </label>
-      {translit && converted !== text && (
+      <div className="controls-row">
+        <label className="consent">
+          <input type="checkbox" checked={translit} onChange={(e) => setTranslit(e.target.checked)} />
+          <span>Romanized → native script</span>
+        </label>
+        <select
+          className="select"
+          value={script}
+          disabled={!translit}
+          onChange={(e) => setScript(e.target.value)}
+          aria-label="Target script"
+        >
+          {SUPPORTED_SCRIPTS.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+        <label className="consent">
+          <input type="checkbox" checked={cleanup} onChange={(e) => setCleanup(e.target.checked)} />
+          <span>Sanitize input</span>
+        </label>
+      </div>
+      {prepared !== text && (
         <div className="preview">
-          <span className="preview-label">Devanagari preview — this is what the model speaks</span>
-          <p>{converted}</p>
+          <span className="preview-label">Model input preview — this is what OmniVoice speaks</span>
+          <p>{prepared}</p>
         </div>
       )}
 
@@ -138,7 +163,7 @@ export function Synthesizer({ device }: { device: Device }) {
         <button
           className="btn primary"
           disabled={busy || !text.trim()}
-          onClick={() => void generate(translit ? converted : text)}
+          onClick={() => void generate(prepared)}
         >
           {busy ? 'Working…' : 'Generate'}
         </button>

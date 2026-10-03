@@ -529,6 +529,32 @@ body {
   color: var(--muted);
 }
 
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.controls-row .consent {
+  margin-top: 0;
+}
+
+.select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.select:disabled {
+  opacity: 0.5;
+}
+
 .preview {
   margin-top: 10px;
   padding: 10px 12px;

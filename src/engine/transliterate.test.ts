@@ -36,4 +36,19 @@ describe('transliterate', () => {
   it('keeps fully Devanagari sentences unchanged', () => {
     expect(transliterate('नमस्ते, आप कैसे हैं?')).toBe('नमस्ते, आप कैसे हैं?')
   })
+
+  it('keeps Latin languages (English/Spanish) and converts Hinglish', () => {
+    const out = transliterate('Hola amigo, kaise ho? vamos a la playa')
+    expect(out).toContain('Hola amigo')
+    expect(out).toContain('vamos')
+    expect(out).toContain('playa')
+    expect(out).toContain('कैसे')
+    expect(out).toContain('हो')
+  })
+
+  it('supports other Indic scripts', () => {
+    expect(transliterate('namaste', { script: 'telugu' })).toMatch(/[\u0c00-\u0c7f]/)
+    expect(transliterate('namaste', { script: 'tamil' })).toMatch(/[\u0b80-\u0bff]/)
+    expect(transliterate('namaste', { script: 'bengali' })).toMatch(/[\u0980-\u09ff]/)
+  })
 })
