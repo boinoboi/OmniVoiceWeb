@@ -128,6 +128,7 @@ export interface DownloadOptions {
 
 export class ModelDownloader {
   private loadedByPath = new Map<string, number>()
+  private partial = new Map<string, Uint8Array[]>()
   private readonly options: DownloadOptions
 
   constructor(options: DownloadOptions = {}) {
@@ -188,7 +189,7 @@ export class ModelDownloader {
     total: number,
     emit: (u: DownloadUpdate) => void,
   ): Promise<void> {
-    const attempts = 4
+    const attempts = 24
     let lastError: unknown
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
@@ -197,19 +198,17 @@ export class ModelDownloader {
       } catch (error) {
         lastError = error
         if (this.options.signal?.aborted) throw error
-        this.loadedByPath.set(file.path, 0)
-        emit({
-          file,
-          fileLoaded: 0,
-          fileTotal: file.bytes,
-          overallLoaded: this.overall(total),
-          overallTotal: total,
-          phase: 'start',
-        })
-        await new Promise((resolve) => setTimeout(resolve, 400 * attempt))
+        await new Promise((resolve) => setTimeout(resolve, 300 * attempt))
       }
     }
     throw lastError instanceof Error ? lastError : new Error(String(lastError))
+  }
+
+  private partialBytes(path: string): { chunks: Uint8Array[]; bytes: number } {
+    const chunks = this.partial.get(path) ?? []
+    let bytes = 0
+    for (const chunk of chunks) bytes += chunk.byteLength
+    return { chunks, bytes }
   }
 
   private async fetchOnce(
@@ -218,21 +217,29 @@ export class ModelDownloader {
     emit: (u: DownloadUpdate) => void,
   ): Promise<void> {
     if (await isCached(file.path)) return
-    const res = await fetch(file.url, { signal: this.options.signal })
-    if (!res.ok) throw new Error(`HTTP ${res.status} when downloading ${file.path}`)
-    const headerTotal = Number(res.headers.get('content-length'))
-    const fileTotal = Number.isFinite(headerTotal) && headerTotal > 0 ? headerTotal : file.bytes
 
-    const chunks: BlobPart[] = []
-    let fileLoaded = 0
-    this.loadedByPath.set(file.path, 0)
+    let { chunks, bytes: start } = this.partialBytes(file.path)
+    const headers: Record<string, string> = {}
+    if (start > 0) headers.Range = `bytes=${start}-`
+
+    const res = await fetch(file.url, { headers, signal: this.options.signal })
+    if (!res.ok) throw new Error(`HTTP ${res.status} when downloading ${file.path}`)
+
+    if (start > 0 && res.status !== 206) {
+      chunks = []
+      start = 0
+    }
+
+    const fileTotal = file.bytes
+    let fileLoaded = start
+    this.loadedByPath.set(file.path, fileLoaded)
     emit({
       file,
-      fileLoaded: 0,
+      fileLoaded,
       fileTotal,
       overallLoaded: this.overall(total),
       overallTotal: total,
-      phase: 'start',
+      phase: start > 0 ? 'progress' : 'start',
     })
 
     const reader = res.body?.getReader()
@@ -241,9 +248,10 @@ export class ModelDownloader {
         const { done, value } = await reader.read()
         if (done) break
         if (value) {
-          chunks.push(value as unknown as BlobPart)
+          chunks.push(value)
           fileLoaded += value.byteLength
           this.loadedByPath.set(file.path, fileLoaded)
+          this.partial.set(file.path, chunks)
           emit({
             file,
             fileLoaded,
@@ -255,17 +263,23 @@ export class ModelDownloader {
         }
       }
     } else {
-      const buffer = await res.arrayBuffer()
+      const buffer = new Uint8Array(await res.arrayBuffer())
       chunks.push(buffer)
-      fileLoaded = buffer.byteLength
+      fileLoaded += buffer.byteLength
+      this.partial.set(file.path, chunks)
     }
 
-    const blob = new Blob(chunks, { type: 'application/octet-stream' })
+    if (fileLoaded < fileTotal) {
+      throw new Error(`Incomplete download for ${file.path} (${fileLoaded}/${fileTotal})`)
+    }
+
+    const blob = new Blob(chunks as unknown as BlobPart[], { type: 'application/octet-stream' })
     await putBlob(file.path, blob)
-    this.loadedByPath.set(file.path, file.bytes)
+    this.partial.delete(file.path)
+    this.loadedByPath.set(file.path, fileTotal)
     emit({
       file,
-      fileLoaded: file.bytes,
+      fileLoaded: fileTotal,
       fileTotal,
       overallLoaded: this.overall(total),
       overallTotal: total,
