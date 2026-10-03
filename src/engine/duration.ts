@@ -13,10 +13,16 @@ function charWeight(text: string): number {
   return weight
 }
 
+const LOW_THRESHOLD = 50
+const BOOST_STRENGTH = 3
+
 export function estimateTargetTokens(text: string, refFrames?: number): number {
   const weight = charWeight(text)
   const refWeight = charWeight('Nice to meet you.')
   const refTokens = refFrames && refFrames > 0 ? refFrames : 25
-  const tokens = Math.round(weight * (refTokens / refWeight))
-  return Math.max(8, Math.min(1200, tokens))
+  let tokens = weight * (refTokens / refWeight)
+  if (tokens < LOW_THRESHOLD) {
+    tokens = LOW_THRESHOLD * (tokens / LOW_THRESHOLD) ** (1 / BOOST_STRENGTH)
+  }
+  return Math.max(8, Math.min(1200, Math.round(tokens)))
 }

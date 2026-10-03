@@ -177,6 +177,33 @@ So fp16 is faithful enough for the backbone at **half the size** — this is the
   `nvidia | ampere`. `scripts/probe-gpu.mjs` documents the matrix; `scripts/e2e-tts.mjs` gained
   `E2E_REALGPU`, `E2E_HEADFUL`, `E2E_PROFILE` (persistent cache) and fails fast without a GPU.
 
+## Browser parity on a real GPU (fp32 bidirectional + CFG) — THE MILESTONE
+
+Headful Chrome on the 3090 (adapter `nvidia | ampere`), models streamed from HF, running the full
+pipeline **in the browser** (tokenizer → int4 embeddings → fp32 bidirectional LLM → int4 heads →
+CFG loop → Higgs decoder → WAV). Command:
+`E2E_REALGPU=1 E2E_HEADFUL=1 E2E_PROFILE=… node scripts/e2e-tts.mjs http://localhost:4173/`.
+
+| text | dur | centroid | speech-band | ASR round-trip |
+|---|---|---|---|---|
+| "The quick brown fox jumps over the lazy dog." | 2.56 s | 2658 Hz | 87.0% | **exact** |
+
+The browser now reproduces the Python reference (also exact ASR). Findings:
+
+- **fp16 cannot run on WebGPU here.** This Chrome/Dawn adapter lacks `shader-f16`
+  (`scripts/feat.mjs` → `f16:false`), and ORT-web 1.30 needs it for fp16 ops
+  (`Cast requires f16 but the device does not support it`). We therefore ship the **fp32**
+  bidirectional LLM (1.77 GB) as the browser default. fp16 stays a variant for f16-capable GPUs.
+- **int4 is still the size target** (MatMulNBits works on WebGPU, no f16 needed), but ORT 1.30's new
+  int4 quantizer errors and the legacy `MatMul4BitsQuantizer` was removed — deferred (Phase 8).
+- **Download robustness matters:** HF Xet emits `ERR_NETWORK_CHANGED`, which aborted multi-GB
+  fetches. Fixed with retries + HTTP **Range resume**; the 1.77 GB download now completes with
+  monotonic progress.
+- **Short auto-voice is still unstable:** "Hello world." (35 frames, 1.44 s) decodes to non-speech
+  (`. . . .`), confirming prior art — a reference voice (cloning) is the stabiliser.
+- **Duration estimator fixed:** ported the reference `RuleDurationEstimator` power-curve boost
+  (`low_threshold=50`, boost 3). The fox sentence now estimates 64–65 frames vs the reference 66.
+
 ## Export defects found
 
 - `audio_tokenizer/fp16/semantic_encoder.onnx` is **malformed**: a `LayerNormalization` node is

@@ -31,8 +31,16 @@ describe('prompt helpers', () => {
 })
 
 describe('duration', () => {
-  it('scales with text length and clamps', () => {
-    expect(estimateTargetTokens('a')).toBe(8)
-    expect(estimateTargetTokens('The quick brown fox jumps over the lazy dog.')).toBeGreaterThan(20)
+  it('boosts short utterances and matches the reference length', () => {
+    expect(estimateTargetTokens('a')).toBeGreaterThanOrEqual(8)
+    expect(estimateTargetTokens('a')).toBeLessThan(25)
+    expect(estimateTargetTokens('Hello world.')).toBeGreaterThan(30)
+    const fox = estimateTargetTokens('The quick brown fox jumps over the lazy dog.')
+    expect(fox).toBeGreaterThan(58)
+    expect(fox).toBeLessThan(70)
+  })
+
+  it('uses reference frames when provided', () => {
+    expect(estimateTargetTokens('Hello world.', 40)).toBeGreaterThan(40)
   })
 })

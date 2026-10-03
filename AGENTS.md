@@ -90,10 +90,19 @@ Full plan: `docs/PLAN.md`. Differentiation + prior art: `docs/PRIOR_ART.md`.
 Architecture: `docs/ARCHITECTURE.md`. Results so far: `docs/RESULTS.md`.
 Milestones tracked in the todo list.
 
-**Status (latest, resume here):** browser pipeline is wired to the **real algorithm** — special-token
-prompt + **CFG** + t-shift schedule + layer penalty + gumbel — with a **re-exported bidirectional
-fp16 LLM**. This produced reference-parity audio in Python (exact ASR, EN + Hinglish). Last commits:
-`f7bafd1` (wire CFG+bidir), `a0d7491` (TS CFG port), `0918aa0` (bidir breakthrough).
+**Status (latest, resume here):** **browser parity achieved on a real GPU.** Headful Chrome on the
+3090 running the full in-browser pipeline (CFG + bidirectional fp32 LLM) gives exact ASR for
+"The quick brown fox jumps over the lazy dog." (2.56 s, 87% speech-band). Reproduce:
+`E2E_REALGPU=1 E2E_HEADFUL=1 E2E_PROFILE=/tmp/opencode/chrome-profile node scripts/e2e-tts.mjs
+http://localhost:4173/` (headful is required; headless exposes no WebGPU adapter).
+
+- **Browser uses the fp32 bidir LLM (1.77 GB), not fp16:** this WebGPU adapter lacks `shader-f16`
+  (`scripts/feat.mjs`), and ORT-web 1.30 needs it for fp16. Hosted at HF
+  `asdasdsadscxzxc/omnivoice-web-bidir` (`BIDIR_BASE`, `manifest.ts`, `PATHS.llm`).
+- `createBackboneStep` casts f32→f16→f32 around the LLM when `llmFloat16` (unused for fp32 now).
+- Duration now ports the reference boost (`low_threshold=50`, boost 3) — fox → 65 frames vs 66.
+- Downloads have retries + HTTP Range resume (HF `ERR_NETWORK_CHANGED` blips).
+- Short auto-voice ("Hello world.") still decodes to non-speech — needs a reference voice.
 
 ### THE critical finding (do not rediscover)
 - The public `onnx-community/OmniVoice-Onnx` `llm_decoder` is **causal** → the model ignores the
@@ -123,13 +132,16 @@ ASR/WER check: faster-whisper `WhisperModel('base', cpu, int8)`; resample to 16k
   (`--enable-unsafe-webgpu --enable-features=Vulkan --use-angle=vulkan`) or a short target.
 
 ### Next steps (in order)
-1. Validate browser CFG+bidir on a **real GPU** (fast) → save WAV, ASR-check. Provide the user a
-   one-command tester for their GPU + a phone.
-2. Host/deploy: point `BIDIR_BASE` at a stable repo (currently a throwaway HF account).
-3. Voice cloning: precompute `voices.json` (Higgs encoders) + in-browser encode; stabilizes short input.
-4. Cache/memory manager (LRU, session/GPU release, device-tier select); dedupe bundled ORT wasm.
-5. Sentence streaming + progressive shard loading.
-6. Quant toolkit (fix fp16 semantic; WASM-safe embeddings; int4 bidir) + Hinglish/Marathi calibration.
+1. ~~Validate browser CFG+bidir on a real GPU~~ **DONE** (exact ASR). Give the user a one-command
+   tester + a phone test.
+2. Host/deploy: point `BIDIR_BASE` at a stable repo (currently the throwaway HF `asdasdsadscxzxc`);
+   reduce download size — **int4 MatMulNBits is the target** (ORT 1.30 quantizer broken; legacy
+   removed — use an older ORT in a throwaway venv or hand-pack).
+3. Voice cloning end-to-end test (engine + UI landed); add `voices.json` precompute; stabilises
+   short input.
+4. Cache/memory manager: cross-profile LRU + session/GPU release + device-tier select; dedupe ORT wasm.
+5. Progressive shard loading + surface TTFA.
+6. WASM-safe embeddings/backbone if a CPU path is required (currently WebGPU-only).
 7. Eval: UTMOS + round-trip WER + RTF/TTFA/peak-mem + in-app Pareto dashboard. Report/demo.
 
 Fixtures `tools/golden/`, models `tools/models/` (git-ignored).
