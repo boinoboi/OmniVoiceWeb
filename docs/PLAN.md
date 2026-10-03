@@ -91,6 +91,21 @@ sampling (T=5.0), greedy class (T=0).
 - [ ] Progressive external-data fetch with per-shard progress and resume.
 - **Gate:** first audio starts before the whole model is resident.
 
+## Phase 3c — Re-export the LLM with bidirectional attention  [BLOCKING for quality]
+
+The onnx-community `llm_decoder` is causal (genai `GroupQueryAttention` + 2-D causal mask).
+OmniVoice is a masked-diffusion LM requiring a **full bidirectional** mask. Without this the
+model ignores the prompt (proven: reference exact ASR vs our generic output).
+
+- [ ] `tools/export_llm.py`: load `OmniVoice` (torch, `tools/.venv-ref`), export the Qwen3 core
+      with `attn_implementation="eager"`, `is_causal=False` (or the model's flex-attention mask),
+      `exclude_embeds=True`/`exclude_lm_head=True`, inputs `inputs_embeds`(+`attention_mask`) →
+      `hidden_states`, opset 20, fp32.
+- [ ] Numerical parity vs the reference hidden states.
+- [ ] Swap into `manifest.ts`; re-run the Python CFG reference (`tools/generate_cfg.py`) → ASR should
+      match the text.
+- **Gate:** reference-quality ASR on auto-voice; then MESSAGE USER (clip).
+
 ## Phase 8 — Quantization toolkit (P2/P3)
 
 - [ ] `tools/export.py`: ONNX export with dynamic axes + external-data sharding; parity check.

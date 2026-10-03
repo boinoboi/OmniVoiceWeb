@@ -99,6 +99,30 @@ auto-voice input. This matches prior art ("without a reference voice, short inpu
 and the diffusion-loop precision literature. The next required work is the **real algorithm**
 (classifier-free guidance + reference voice), not a smaller quantization step.
 
+## Ground truth vs ONNX port (the pivotal finding)
+
+Installed the real reference (`omnivoice` package + torch cu128) in `tools/.venv-ref` and ran
+the exact CLI (`omnivoice-infer --text "The quick brown fox..."`) on the 3090:
+
+| audio | ASR round-trip | centroid | speech-band | dur |
+|---|---|---|---|---|
+| **Reference (PyTorch)** | **"The quick brown fox jumps over the lazy dog." (exact)** | 1364 Hz | **95.5%** | 2.64 s |
+| Our ONNX CFG port | "Please, please, please, please, please." | 144 Hz | 16.3% | 3.60 s |
+
+So auto-voice works in the reference; our ONNX port does **not condition on the text**.
+
+**Root cause: the onnx-community export uses causal attention.** The exported `llm_decoder`
+uses ORT `GroupQueryAttention` with genai's `attn_mask_subformat` reformat (2-D causal mask).
+The real OmniVoice loop uses a **full bidirectional block mask** (`batch_attention_mask[...]=True`
+over the whole `[c_len, c_len]` block) — the model is a masked-diffusion LM, not a causal LM.
+Under causal attention the target positions cannot use the bidirectional context the model was
+trained on, so conditioning collapses to generic speech.
+
+**Consequence:** the shipped ONNX backbone cannot be made faithful by prompt/CFG fixes alone.
+We must **re-export the LLM with non-causal (bidirectional) attention** — which is exactly the
+proposal's ONNX-export deliverable (Phase 2/8), now clearly *necessary*, not optional. The
+`omnivoice` + torch env we just installed is the source for that export.
+
 ## Export defects found
 
 - `audio_tokenizer/fp16/semantic_encoder.onnx` is **malformed**: a `LayerNormalization` node is
