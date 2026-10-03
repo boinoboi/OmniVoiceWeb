@@ -58,8 +58,9 @@ reference (see `docs/ALGORITHM.md`): special-token prompt, classifier-free guida
 (cond+uncond), timestep schedule (`t_shift=0.1`), layer penalty (5.0), gumbel position
 sampling (T=5.0), greedy class (T=0).
 
-- [ ] `engine/prompt.ts`, `engine/duration.ts`; extend `algorithm.ts` + `backbone.ts`.
-- [ ] Reference goldens from the `omnivoice` Python package (install in `tools/.venv`).
+- [x] `engine/prompt.ts`, `engine/duration.ts`; extend `algorithm.ts` + `backbone.ts`.
+- [x] Reference parity proven in Python (`tools/generate_cfg.py`): exact ASR, EN + Hinglish.
+- [ ] Browser e2e on a real GPU (running; headless has no adapter → use headful).
 - **Gate:** browser audio has speech-like spectrum + intelligible; MESSAGE USER (clip).
 
 ## Phase 4 — End-to-end auto-voice (M5)  [pipeline done; quality via Phase 3b]
@@ -73,21 +74,21 @@ sampling (T=5.0), greedy class (T=0).
 ## Phase 5 — Voice cloning (M6)
 
 - [ ] `tools/precompute_voices.py`: encode reference clips → `voices.json`; ship in `public/`.
-- [ ] In-browser encode path (acoustic + semantic + quantizer) behind a `full` profile.
-- [ ] `ui/Synthesizer.tsx`: reference upload, transcript, consent checkbox.
+- [x] In-browser encode path (acoustic + semantic + quantizer) behind a `full` profile.
+- [x] `ui/Synthesizer.tsx`: reference upload + transcript (add an explicit consent checkbox).
 - **Gate:** cloned voice matches reference timbre; cloned vs auto-voice A/B. **MESSAGE USER.**
 
 ## Phase 6 — Cache + memory manager (P5)
 
-- [ ] LRU eviction over cached shards; storage accounting UI; delete/clear.
-- [ ] `engine/memory.ts`: session release + idle timeout; best-effort GPU buffer release.
+- [x] Eviction over cached shards (`pruneCache`/`filesToPrune`); delete/clear UI.
+- [ ] LRU *cross-profile* eviction + `engine/memory.ts` (session release + idle timeout).
 - [ ] Device-tier auto-selection (uses `capabilities.ts`): pick `lite`/`full`/`fp16` by RAM, GPU
       buffer limits and measured quality table.
 - **Gate:** switching profiles releases memory; measured peak memory reported.
 
 ## Phase 7 — Streaming + progressive shards (P4g)
 
-- [ ] Sentence chunking; generate + play sentence 1 while later sentences generate.
+- [x] Sentence chunking; generate + publish audio progressively per chunk.
 - [ ] Progressive external-data fetch with per-shard progress and resume.
 - **Gate:** first audio starts before the whole model is resident.
 
@@ -101,8 +102,9 @@ model ignores the prompt (proven: reference exact ASR vs our generic output).
       bidirectional attention), opset 20, fp32 → `tools/models/bidir/llm_decoder.onnx`.
 - [x] `tools/generate_cfg.py`: real prompt + CFG + schedule + layer penalty + gumbel.
 - [x] ASR matches the reference exactly (EN and Hinglish). **Gate PASSED.**
-- [ ] Quantize the bidir LLM to int4/fp16 for the browser; add to `manifest.ts`.
-- [ ] Port prompt+CFG to TS (`engine/prompt.ts`, extend `algorithm.ts`) and re-run e2e.
+- [x] fp16 bidir LLM (885 MB) exported natively, hosted, and added to `manifest.ts`.
+- [x] Port prompt+CFG to TS (`engine/prompt.ts`, extend `algorithm.ts`) and wire into the pipeline.
+- [ ] int4 bidir LLM (ORT 1.30 int4 quantizer config is broken; needs a manual path).
 
 ## Phase 8 — Quantization toolkit (P2/P3)
 

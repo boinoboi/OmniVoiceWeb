@@ -145,6 +145,38 @@ cannot be recovered by prompt/CFG alone. This validates the proposal's export-to
 deliverable as essential. Browser path now requires: (a) TS port of prompt+CFG, (b) a
 browser-sized (int4/fp16) bidirectional LLM.
 
+## Browser-sized bidirectional LLM (fp16) — exact ASR at 885 MB
+
+Native fp16 export (`tools/export_llm.py --dtype fp16`) makes an **885 MB** external-data graph
+(`llm_decoder_fp16.onnx` + `.data`); the earlier "2652 MB" was a size-print bug that summed the
+fp32 `.data` too. `tools/generate_cfg.py --llm bidir/llm_decoder_fp16.onnx` on the 3090:
+
+| pipeline | ASR round-trip | centroid | speech-band | dur |
+|---|---|---|---|---|
+| fp32 bidir + CFG | exact | 878 Hz | 88.1% | 2.64 s |
+| **fp16 bidir + CFG** | **exact** | 773 Hz | **81.2%** | 2.64 s |
+
+So fp16 is faithful enough for the backbone at **half the size** — this is the browser default
+(`BIDIR_BASE` in `manifest.ts`, hosted at HF `asdasdsadscxzxc/omnivoice-web-bidir`). fp16 is a
+**WebGPU-only** rung (ORT WASM has no fp16 kernels).
+
+## Feature work landed (Phases 5–7, engine + UI)
+
+- **CFG in the browser:** `engine/prompt.ts` + `iterativeUnmaskCfg` (`algorithm.ts`) are wired into
+  `pipeline.generate`; unit-tested with a mock step (`algorithm.test.ts`) — every position unmasks,
+  codes are written back to cond+uncond, progress reaches 0 remaining.
+- **Streaming (P7):** `engine/streaming.ts` splits code-switched text (latin + Devanagari danda)
+  into sentence chunks; `generateStream` emits progressive chunks; the worker posts `chunk`
+  messages and the UI publishes a growing WAV so playback can start early.
+- **Cloning (P5):** `engine/cloning.ts` ports the Higgs reference encode path
+  (24k acoustic → 16k semantic → frame-aligned quantizer → `[8, t]` codes);
+  `Synthesizer.loadEncoders()/encodeReference()` (full profile) + `encode` worker message + a
+  reference-clip picker in the UI. Needs listening/A-B at the gate.
+- **Cache manager (P6):** `pruneCache`/`filesToPrune`/`cachedBytes`; "Remove other models" button.
+- **Real-GPU testing:** headless Chrome returns *no* WebGPU adapter on this box; **headful** gives
+  `nvidia | ampere`. `scripts/probe-gpu.mjs` documents the matrix; `scripts/e2e-tts.mjs` gained
+  `E2E_REALGPU`, `E2E_HEADFUL`, `E2E_PROFILE` (persistent cache) and fails fast without a GPU.
+
 ## Export defects found
 
 - `audio_tokenizer/fp16/semantic_encoder.onnx` is **malformed**: a `LayerNormalization` node is
