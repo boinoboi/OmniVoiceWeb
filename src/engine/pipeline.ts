@@ -249,33 +249,39 @@ export class Synthesizer {
     options: SynthOptions = {},
     onProgress?: (progress: SynthProgress) => void,
     onChunk?: (chunk: SynthChunk) => void,
+    shouldCancel?: () => boolean,
   ): Promise<SynthResult> {
-    const chunks = chunkText(text, { maxChars: options.maxChars ?? 240 })
+    const chunks = chunkText(text, { maxChars: options.maxChars ?? 200 })
     if (chunks.length <= 1) return this.generate(text, options, onProgress)
 
+    const progressive = chunks.length <= 12
     const parts: Float32Array[] = []
     let frames = 0
     const start = performance.now()
+
     for (let i = 0; i < chunks.length; i++) {
+      if (shouldCancel?.()) throw new DOMException('Cancelled', 'AbortError')
+      onProgress?.({
+        stage: 'generate',
+        ratio: i / chunks.length,
+        detail: `part ${i + 1}/${chunks.length}`,
+      })
       const result = await this.generate(chunks[i], options, (progress) =>
         onProgress?.({ ...progress, ratio: (i + progress.ratio) / chunks.length }),
       )
-      const chunk: SynthChunk = {
-        samples: result.samples,
-        sampleRate: result.sampleRate,
-        frames: result.frames,
-        index: i,
-        total: chunks.length,
-        text: chunks[i],
-      }
+      if (shouldCancel?.()) throw new DOMException('Cancelled', 'AbortError')
       parts.push(result.samples)
       frames += result.frames
-      onChunk?.(chunk)
-      onProgress?.({
-        stage: 'generate',
-        ratio: (i + 1) / chunks.length,
-        detail: `part ${i + 1}/${chunks.length}`,
-      })
+      if (progressive && onChunk) {
+        onChunk({
+          samples: result.samples,
+          sampleRate: result.sampleRate,
+          frames: result.frames,
+          index: i,
+          total: chunks.length,
+          text: chunks[i],
+        })
+      }
     }
     onProgress?.({ stage: 'done', ratio: 1 })
     return {

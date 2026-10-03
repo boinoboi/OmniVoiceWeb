@@ -152,6 +152,9 @@ export function useSynthesizer(
         } else if (message.type === 'result' || message.type === 'encoded') {
           clearWatchdog()
           pendingRef.current?.resolve(message)
+        } else if (message.type === 'cancelled') {
+          clearWatchdog()
+          pendingRef.current?.reject(new DOMException('Cancelled', 'AbortError'))
         } else if (message.type === 'error') {
           clearWatchdog()
           pendingRef.current?.reject(new Error(message.message ?? 'Worker error'))
@@ -220,6 +223,10 @@ export function useSynthesizer(
         }))
       } catch (error) {
         clearWatchdog()
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          setView((v) => ({ ...v, phase: 'idle', stage: '', detail: '', ratio: 0 }))
+          return
+        }
         setView((v) => ({
           ...v,
           phase: 'error',
@@ -229,6 +236,10 @@ export function useSynthesizer(
     },
     [device, precision, safeDecoder, send, publish, armWatchdog, clearWatchdog],
   )
+
+  const cancel = useCallback(() => {
+    workerRef.current?.postMessage({ type: 'cancel' })
+  }, [])
 
   const encodeReference = useCallback(
     async (samples: Float32Array, name?: string, text?: string): Promise<VoiceReference> => {
@@ -320,5 +331,14 @@ export function useSynthesizer(
     }
   }, [clearWatchdog])
 
-  return { view, generate, encodeReference, setReference, reference, clearReference, selfTest }
+  return {
+    view,
+    generate,
+    cancel,
+    encodeReference,
+    setReference,
+    reference,
+    clearReference,
+    selfTest,
+  }
 }

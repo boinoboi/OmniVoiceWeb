@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { encodeWav } from '../engine/audio'
 import type { Precision } from '../engine/manifest'
 import { sanitizeForTts } from '../engine/sanitize'
+import { chunkText } from '../engine/streaming'
 import { SUPPORTED_SCRIPTS, transliterate } from '../engine/transliterate'
 import { loadVoices, type PrecomputedVoice } from '../engine/voices'
 import { useSynthesizer } from './useSynthesizer'
@@ -39,7 +40,7 @@ export function Synthesizer({ device }: { device: Device }) {
   const [text, setText] = useState(EXAMPLES[1])
   const [precision, setPrecision] = useState<Precision>('int4')
   const [safeDecoder, setSafeDecoder] = useState(false)
-  const { view, generate, encodeReference, setReference, reference, clearReference, selfTest } =
+  const { view, generate, cancel, encodeReference, setReference, reference, clearReference, selfTest } =
     useSynthesizer(device, precision, safeDecoder)
 
   const playTone = (): void => {
@@ -61,6 +62,7 @@ export function Synthesizer({ device }: { device: Device }) {
     const sanitized = cleanup ? sanitizeForTts(text) : text
     return translit ? transliterate(sanitized, { keepEnglish: true, script }) : sanitized
   }, [text, cleanup, translit, script])
+  const parts = useMemo(() => chunkText(prepared, { maxChars: 200 }).length, [prepared])
   const busy = view.phase === 'loading' || view.phase === 'generating'
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -169,6 +171,12 @@ export function Synthesizer({ device }: { device: Device }) {
           <span>Audio decoder on CPU (fixes blank audio)</span>
         </label>
       </div>
+      {parts > 3 && (
+        <p className="muted small">
+          Long input — split into <strong>{parts}</strong> parts and generated sequentially. This can
+          take a while; use Cancel to stop.
+        </p>
+      )}
       {view.metrics && view.metrics.rms < 0.005 && (
         <p className="notice warn">
           Output looks like silence. If you're on WebGPU, this GPU may miscompute the int4 weights —
@@ -209,6 +217,11 @@ export function Synthesizer({ device }: { device: Device }) {
           <a className="btn ghost" href={view.audioUrl} download="omnivoice.wav">
             Download WAV
           </a>
+        )}
+        {busy && (
+          <button className="btn danger" type="button" onClick={cancel}>
+            Cancel
+          </button>
         )}
         <button className="btn ghost" type="button" onClick={playTone}>
           Test sound

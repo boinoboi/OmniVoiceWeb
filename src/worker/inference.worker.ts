@@ -35,12 +35,18 @@ type Incoming =
     }
   | { type: 'encode'; samples: Float32Array; device: Device }
   | { type: 'selftest' }
+  | { type: 'cancel' }
   | { type: 'dispose' }
 
 const progress = (p: SynthProgress) => scope.postMessage({ type: 'progress', progress: p })
+let cancelRequested = false
 
 scope.onmessage = async (event: MessageEvent<Incoming>) => {
   const message = event.data
+  if (message.type === 'cancel') {
+    cancelRequested = true
+    return
+  }
     const isWork =
       message.type === 'load' ||
       message.type === 'generate' ||
@@ -79,6 +85,7 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
       }
       scope.postMessage({ type: 'loaded', device: synth.device })
     } else if (message.type === 'generate') {
+      cancelRequested = false
       const result = await synth.generateStream(
         message.text,
         {
@@ -101,6 +108,7 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
             index: chunk.index,
             total: chunk.total,
           }),
+        () => cancelRequested,
       )
       scope.postMessage(
         {
@@ -136,10 +144,14 @@ scope.onmessage = async (event: MessageEvent<Incoming>) => {
       await synth.dispose()
     }
   } catch (error) {
-    scope.postMessage({
-      type: 'error',
-      message: error instanceof Error ? error.message : String(error),
-    })
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      scope.postMessage({ type: 'cancelled' })
+    } else {
+      scope.postMessage({
+        type: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
   } finally {
     if (isWork) idle.touch()
   }
