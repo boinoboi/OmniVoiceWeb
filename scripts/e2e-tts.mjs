@@ -5,11 +5,15 @@ const url = process.argv[2] ?? 'http://localhost:4173/'
 const executablePath = process.env.CHROME_PATH ?? '/usr/bin/google-chrome-stable'
 const timeoutMs = Number(process.env.E2E_TIMEOUT ?? 1_200_000)
 const useGpu = process.env.E2E_GPU === '1'
+const useRealGpu = process.env.E2E_REALGPU === '1'
 const outPath = process.env.E2E_OUT
+const testText = process.env.E2E_TEXT ?? 'Hello world.'
 
-const args = useGpu
-  ? ['--no-sandbox', '--enable-unsafe-webgpu', '--enable-features=WebGPU', '--use-webgpu-adapter=swiftshader']
-  : ['--no-sandbox', '--disable-gpu']
+const args = useRealGpu
+  ? ['--no-sandbox', '--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=vulkan']
+  : useGpu
+    ? ['--no-sandbox', '--enable-unsafe-webgpu', '--enable-features=WebGPU', '--use-webgpu-adapter=swiftshader']
+    : ['--no-sandbox', '--disable-gpu']
 
 const browser = await puppeteer.launch({
   executablePath,
@@ -41,7 +45,7 @@ await page.keyboard.down('Control')
 await page.keyboard.press('KeyA')
 await page.keyboard.up('Control')
 await page.keyboard.press('Backspace')
-await page.type('.textarea', 'Hello world.')
+await page.type('.textarea', testText)
 
 console.log('clicking Generate (downloads models, then runs the pipeline)')
 await page.evaluate(() => {

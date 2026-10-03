@@ -90,8 +90,49 @@ Full plan: `docs/PLAN.md`. Differentiation + prior art: `docs/PRIOR_ART.md`.
 Architecture: `docs/ARCHITECTURE.md`. Results so far: `docs/RESULTS.md`.
 Milestones tracked in the todo list.
 
-**Status:** Phase 1 done (golden vectors + ORT-web parity). Next: Phase 2 Higgs codec.
-Python harness: `tools/.venv` (Py 3.12), fixtures in `tools/golden/`, models in `tools/models/`.
+**Status (latest, resume here):** browser pipeline is wired to the **real algorithm** — special-token
+prompt + **CFG** + t-shift schedule + layer penalty + gumbel — with a **re-exported bidirectional
+fp16 LLM**. This produced reference-parity audio in Python (exact ASR, EN + Hinglish). Last commits:
+`f7bafd1` (wire CFG+bidir), `a0d7491` (TS CFG port), `0918aa0` (bidir breakthrough).
+
+### THE critical finding (do not rediscover)
+- The public `onnx-community/OmniVoice-Onnx` `llm_decoder` is **causal** → the model ignores the
+  text prompt. OmniVoice is a masked-diffusion LM needing **full bidirectional** attention.
+- Fix: `tools/export_llm.py` re-exports the Qwen3 core with a 4-D all-zero additive mask
+  (non-causal). Result matches the PyTorch reference exactly.
+- `tools/.venv-ref` has torch cu128 + `omnivoice`. `tools/.venv` has ORT-gpu, transformers,
+  faster-whisper, onnx, onnxconverter-common.
+- The browser fetches the re-exported model from HF `asdasdsadscxzxc/omnivoice-web-bidir`
+  (`llm_decoder_fp16.onnx` + `.data`, 885 MB). `BIDIR_BASE` in `manifest.ts`.
+
+### Reference commands (tools/)
+```bash
+tools/.venv/bin/python tools/generate_cfg.py --llm bidir/llm_decoder_fp16.onnx \
+  --provider CUDAExecutionProvider --text "..." --target 66 --scale 2 --out out.wav
+tools/.venv-ref/bin/python tools/export_llm.py --dtype fp32|fp16 --name llm_decoder_fp16.onnx
+tools/.venv/bin/python tools/convert_fp16.py     # (converter path; prefer native export)
+tools/.venv/bin/python tools/quantize_llm.py     # NOTE: ORT 1.30 int4 config is broken
+```
+ASR/WER check: faster-whisper `WhisperModel('base', cpu, int8)`; resample to 16k; `vad_filter=False`.
+
+### Known gotchas (paid for)
+- fp16 & int4 are **WebGPU-only**; ORT WASM lacks `GatherBlockQuantized` (int4 embeddings) and
+  fp16 kernels → **the WASM fallback does not run the current backbone. WebGPU is required.**
+- `audio_tokenizer/fp16/semantic_encoder.onnx` from onnx-community is malformed; use fp32.
+- SwiftShader WebGPU e2e is ~45 min (too slow to iterate). Use real-GPU headless
+  (`--enable-unsafe-webgpu --enable-features=Vulkan --use-angle=vulkan`) or a short target.
+
+### Next steps (in order)
+1. Validate browser CFG+bidir on a **real GPU** (fast) → save WAV, ASR-check. Provide the user a
+   one-command tester for their GPU + a phone.
+2. Host/deploy: point `BIDIR_BASE` at a stable repo (currently a throwaway HF account).
+3. Voice cloning: precompute `voices.json` (Higgs encoders) + in-browser encode; stabilizes short input.
+4. Cache/memory manager (LRU, session/GPU release, device-tier select); dedupe bundled ORT wasm.
+5. Sentence streaming + progressive shard loading.
+6. Quant toolkit (fix fp16 semantic; WASM-safe embeddings; int4 bidir) + Hinglish/Marathi calibration.
+7. Eval: UTMOS + round-trip WER + RTF/TTFA/peak-mem + in-app Pareto dashboard. Report/demo.
+
+Fixtures `tools/golden/`, models `tools/models/` (git-ignored).
 
 **Checkpoints where the agent must message the user:** after parity proof, after first real audio,
 after greedy-vs-CFG and int4-vs-fp16 A/B, after quantization variants, and before real-GPU/mobile
