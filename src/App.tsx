@@ -39,7 +39,7 @@ export default function App() {
         <SystemCheck gpu={gpu} device={device} storage={storage} />
         <ModelManager gpu={gpu} device={device} />
         <EngineLab gpu={gpu} />
-        <Synthesizer ready={false} />
+        <Synthesizer device={gpu?.available ? 'webgpu' : 'wasm'} />
       </main>
 
       <footer className="footer">

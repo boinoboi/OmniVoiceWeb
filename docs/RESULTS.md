@@ -72,6 +72,33 @@ reported as diagnostics, not pass/fail gates.
 
 **Algorithm correctness gate:** step-0 logit cosine ≥ 0.999 → PASS (the loop and IO are correct).
 
+## End-to-end browser inference (Phase 4)
+
+- The full pipeline (tokenizer → 3-model backbone → 32-step greedy loop → Higgs decoder → WAV)
+  runs in the browser. First real audio produced via WebGPU (SwiftShader) for "Hello world."
+  (48 frames → 1.92 s @ 24 kHz), saved at `tools/golden/browser_tts.wav`.
+- **WASM fallback cannot run the int4 embeddings**: `GatherBlockQuantized` has no WASM kernel
+  (`Could not find an implementation for GatherBlockQuantized`). A WASM path needs a non-int4
+  (fp32/int8) embeddings graph.
+- WebGPU on the software SwiftShader adapter is slow (~10 min for ~50 frames); real GPUs are
+  expected to be orders of magnitude faster (prior art: ~2.5× real-time on a 3090).
+
+## Precision A/B and the auto-voice quality finding
+
+Greedy auto-voice, "Hello world.", 48 frames, 32 steps; spectral metrics of the decoded audio:
+
+| backbone | centroid | speech-band (300–3400 Hz) energy | rms |
+|---|---|---|---|
+| int4 | 345 Hz | 12.2% | 0.20 |
+| fp16 | 20 Hz | **0.1%** | 0.49 |
+| Python int4 reference | 227 Hz | 7.0% | 0.55 |
+
+**fp16 is no better than int4**, so the poor output is **algorithmic, not a quantization
+artefact**: the simplified *greedy, no-CFG, no-reference* loop is out of distribution for short
+auto-voice input. This matches prior art ("without a reference voice, short input can emit noise")
+and the diffusion-loop precision literature. The next required work is the **real algorithm**
+(classifier-free guidance + reference voice), not a smaller quantization step.
+
 ## Export defects found
 
 - `audio_tokenizer/fp16/semantic_encoder.onnx` is **malformed**: a `LayerNormalization` node is

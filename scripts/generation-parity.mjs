@@ -92,7 +92,8 @@ const embeddings = await loadSession('audio_embeddings_encoder.onnx')
 const llm = await loadSession('llm_decoder.onnx')
 const heads = await loadSession('audio_heads_decoder.onnx')
 
-const step = createBackboneStep(ort, embeddings, llm, heads)
+const wrap = (session) => ({ session, inputNames: [...session.inputNames] })
+const step = createBackboneStep(ort, wrap(embeddings), wrap(llm), wrap(heads))
 let captured = null
 const started = performance.now()
 const result = await iterativeUnmask(

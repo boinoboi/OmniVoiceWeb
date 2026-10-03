@@ -35,15 +35,11 @@ export const MODEL_FILES: ModelFile[] = [
   file('int4/omnivoice_manifest.json', 3517, 'tokenizer'),
   file('int4/chat_template.jinja', 4168, 'tokenizer'),
 
-  file('audio_tokenizer/fp16/higgs_decoder.onnx', 308494, 'decoder'),
-  file('audio_tokenizer/fp16/higgs_decoder.onnx.data', 43100160, 'decoder'),
-  file('audio_tokenizer/fp16/model_config.json', 348, 'decoder'),
+  file('audio_tokenizer/higgs_decoder.onnx', 86500102, 'decoder'),
 
-  file('audio_tokenizer/fp16/acoustic_encoder.onnx', 295846, 'encoder', 'full'),
-  file('audio_tokenizer/fp16/acoustic_encoder.onnx.data', 102615040, 'encoder', 'full'),
-  file('audio_tokenizer/fp16/semantic_encoder.onnx', 334295, 'encoder', 'full'),
-  file('audio_tokenizer/fp16/semantic_encoder.onnx.data', 218235904, 'encoder', 'full'),
-  file('audio_tokenizer/fp16/quantizer_encoder.onnx', 6091791, 'encoder', 'full'),
+  file('audio_tokenizer/acoustic_encoder.onnx', 205546480, 'encoder', 'full'),
+  file('audio_tokenizer/semantic_encoder.onnx', 436736856, 'encoder', 'full'),
+  file('audio_tokenizer/quantizer_encoder.onnx', 12131293, 'encoder', 'full'),
 ]
 
 export const filesForProfile = (profile: Profile): ModelFile[] =>
@@ -58,8 +54,8 @@ export const fileByPath = (path: string): ModelFile | undefined =>
 export const KIND_LABELS: Record<AssetKind, string> = {
   backbone: 'Qwen3 backbone (int4)',
   tokenizer: 'Tokenizer + config',
-  decoder: 'Higgs audio decoder (fp16)',
-  encoder: 'Higgs cloning encoders (fp16)',
+  decoder: 'Higgs audio decoder (fp32)',
+  encoder: 'Higgs cloning encoders (fp32)',
 }
 
 export const formatBytes = (bytes: number): string => {

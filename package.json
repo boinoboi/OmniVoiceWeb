@@ -14,7 +14,9 @@
     "smoke": "node scripts/smoke.mjs",
     "parity": "node scripts/parity.mjs",
     "ort:copy": "node scripts/copy-ort.mjs",
-    "parity:gen": "node scripts/generation-parity.mjs"
+    "parity:gen": "node scripts/generation-parity.mjs",
+    "predev": "node scripts/copy-ort.mjs",
+    "prebuild": "node scripts/copy-ort.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.0",

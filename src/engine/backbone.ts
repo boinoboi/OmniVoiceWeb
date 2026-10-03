@@ -1,4 +1,4 @@
-import type { Tensor } from 'onnxruntime-web'
+import type { InferenceSession, Tensor } from 'onnxruntime-web'
 import { AUDIO_VOCAB, NUM_CODEBOOKS, type BackboneStep } from './algorithm'
 
 const HIDDEN = 1024
@@ -11,19 +11,16 @@ export interface OrtLike {
   ) => Tensor
 }
 
-export interface RunnableSession {
-  run(
-    feeds: Record<string, Tensor>,
-    outputNames?: readonly string[],
-  ): Promise<Record<string, Tensor>>
+export interface BackboneSession {
+  session: InferenceSession
   inputNames: readonly string[]
 }
 
 export function createBackboneStep(
   ortModule: OrtLike,
-  embeddings: RunnableSession,
-  llm: RunnableSession,
-  heads: RunnableSession,
+  embeddings: BackboneSession,
+  llm: BackboneSession,
+  heads: BackboneSession,
 ): BackboneStep {
   const llmNames = llm.inputNames
   const hasAttentionMask = llmNames.includes('attention_mask')
@@ -33,7 +30,7 @@ export function createBackboneStep(
     const ids = new BigInt64Array(inputIds.length)
     for (let i = 0; i < inputIds.length; i++) ids[i] = BigInt(inputIds[i])
 
-    const embedsOut = await embeddings.run({
+    const embedsOut = await embeddings.session.run({
       input_ids: new ortModule.Tensor('int64', ids, [1, NUM_CODEBOOKS, seq]),
       audio_mask: new ortModule.Tensor('bool', audioMask, [1, seq]),
     })
@@ -49,9 +46,9 @@ export function createBackboneStep(
       feed[name] = new ortModule.Tensor('float32', new Float32Array(0), [1, 8, 0, 128])
     }
 
-    const hiddenOut = await llm.run(feed)
+    const hiddenOut = await llm.session.run(feed)
     const hidden = hiddenOut.hidden_states
-    const headsOut = await heads.run({
+    const headsOut = await heads.session.run({
       hidden_states: new ortModule.Tensor('float32', hidden.data as Float32Array, [1, seq, HIDDEN]),
     })
 
