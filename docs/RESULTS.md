@@ -184,18 +184,23 @@ pipeline **in the browser** (tokenizer → int4 embeddings → fp32 bidirectiona
 CFG loop → Higgs decoder → WAV). Command:
 `E2E_REALGPU=1 E2E_HEADFUL=1 E2E_PROFILE=… node scripts/e2e-tts.mjs http://localhost:4173/`.
 
-| text | dur | centroid | speech-band | ASR round-trip |
-|---|---|---|---|---|
-| "The quick brown fox jumps over the lazy dog." | 2.56 s | 2658 Hz | 87.0% | **exact** |
+| backbone | text | dur | centroid | speech-band | ASR round-trip |
+|---|---|---|---|---|---|
+| fp32 bidir (1.77 GB) | "The quick brown fox jumps over the lazy dog." | 2.56 s | 2658 Hz | 87.0% | **exact** |
+| **int4 bidir (280 MB)** | "The quick brown fox jumps over the lazy dog." | 2.56 s | 2385 Hz | 85.9% | **exact** |
 
-The browser now reproduces the Python reference (also exact ASR). Findings:
+The browser now reproduces the Python reference (also exact ASR). The browser default is **int4
+MatMulNBits** (produced with the ORT 1.20 legacy quantizer in `tools/.venv-quant`; ORT 1.30's new
+quantizer is broken). int4 keeps f32 activations, so it needs **no `shader-f16`** — this is the
+sweet spot: 6.3× smaller than fp32 at equal ASR. Findings:
 
 - **fp16 cannot run on WebGPU here.** This Chrome/Dawn adapter lacks `shader-f16`
   (`scripts/feat.mjs` → `f16:false`), and ORT-web 1.30 needs it for fp16 ops
   (`Cast requires f16 but the device does not support it`). We therefore ship the **fp32**
   bidirectional LLM (1.77 GB) as the browser default. fp16 stays a variant for f16-capable GPUs.
-- **int4 is still the size target** (MatMulNBits works on WebGPU, no f16 needed), but ORT 1.30's new
-  int4 quantizer errors and the legacy `MatMul4BitsQuantizer` was removed — deferred (Phase 8).
+- **int4 is the browser default now:** `tools/quantize_llm_legacy.py` + ORT 1.20
+  (`tools/.venv-quant`, `onnx==1.16.2`) produce 280 MB MatMulNBits with exact ASR. ORT 1.30's new
+  quantizer errors (`must be 8-bit before packing`) and the legacy one was removed from 1.30.
 - **Download robustness matters:** HF Xet emits `ERR_NETWORK_CHANGED`, which aborted multi-GB
   fetches. Fixed with retries + HTTP **Range resume**; the 1.77 GB download now completes with
   monotonic progress.

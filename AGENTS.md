@@ -96,10 +96,14 @@ Milestones tracked in the todo list.
 `E2E_REALGPU=1 E2E_HEADFUL=1 E2E_PROFILE=/tmp/opencode/chrome-profile node scripts/e2e-tts.mjs
 http://localhost:4173/` (headful is required; headless exposes no WebGPU adapter).
 
-- **Browser uses the fp32 bidir LLM (1.77 GB), not fp16:** this WebGPU adapter lacks `shader-f16`
-  (`scripts/feat.mjs`), and ORT-web 1.30 needs it for fp16. Hosted at HF
-  `asdasdsadscxzxc/omnivoice-web-bidir` (`BIDIR_BASE`, `manifest.ts`, `PATHS.llm`).
-- `createBackboneStep` casts f32→f16→f32 around the LLM when `llmFloat16` (unused for fp32 now).
+- **Browser uses the int4 bidir LLM (280 MB), exact ASR.** fp16 was ruled out (this WebGPU adapter
+  lacks `shader-f16`); int4 MatMulNBits keeps f32 activations so needs no f16. Hosted at HF
+  `asdasdsadscxzxc/omnivoice-web-bidir` (`BIDIR_BASE`, `manifest.ts`, `PATHS.llm`). fp32/fp16 also
+  live there if needed.
+- int4 made with `tools/.venv-quant` (Python 3.12, `onnxruntime==1.20.1`, `onnx==1.16.2`), legacy
+  `MatMul4BitsQuantizer`; pass the raw `ModelProto` (double-wrapping an `ONNXModel` crashes with
+  `'method' object is not iterable`). ORT 1.30's new int4 API is broken.
+- `createBackboneStep` casts f32→f16→f32 around the LLM when `llmFloat16` (not used for int4).
 - Duration now ports the reference boost (`low_threshold=50`, boost 3) — fox → 65 frames vs 66.
 - Downloads have retries + HTTP Range resume (HF `ERR_NETWORK_CHANGED` blips).
 - Short auto-voice ("Hello world.") still decodes to non-speech — needs a reference voice.

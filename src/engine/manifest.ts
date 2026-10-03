@@ -33,8 +33,8 @@ export const MODEL_FILES: ModelFile[] = [
   file('int4/audio_embeddings_encoder.onnx', 2363, 'backbone'),
   file('int4/audio_embeddings_encoder.onnx.data', 87160832, 'backbone'),
   file('int4/audio_heads_decoder.onnx', 4462676, 'backbone'),
-  bidir('llm_decoder.onnx', 4380033, 'backbone'),
-  bidir('llm_decoder.onnx.data', 1761869824, 'backbone'),
+  bidir('llm_decoder_int4.onnx', 4022710, 'backbone'),
+  bidir('llm_decoder_int4.onnx.data', 275484672, 'backbone'),
 
   file('int4/tokenizer.json', 11423986, 'tokenizer'),
   file('int4/tokenizer_config.json', 533, 'tokenizer'),
