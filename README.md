@@ -3,9 +3,10 @@
 Multilingual zero-shot text-to-speech that runs **entirely in your browser** on **WebGPU**.
 No server, no uploads, no API keys — the model runs on your own device and audio never leaves it.
 
-Built on [OmniVoice](https://huggingface.co/k2-fsa/OmniVoice) (k2-fsa) via the
-[onnx-community/OmniVoice-Onnx](https://huggingface.co/onnx-community/OmniVoice-Onnx) export,
-using a custom TypeScript inference runtime on top of `onnxruntime-web`.
+Built on [OmniVoice](https://huggingface.co/k2-fsa/OmniVoice) (k2-fsa), using a custom TypeScript
+inference runtime on top of `onnxruntime-web`. The shipped `llm_decoder` is **re-exported with
+bidirectional attention** — the public ONNX export is causal, which makes the model ignore the text
+prompt (see [Results](#results)).
 
 ## Features
 
@@ -26,12 +27,31 @@ and orchestrate in the browser:
 text → tokenize → iterative unmasking (32 steps) → audio codes → Higgs decoder → 24 kHz WAV
                      │
                      ├── audio_embeddings_encoder
-                     ├── llm_decoder        (Qwen3, int4)
+                     ├── llm_decoder        (Qwen3-0.6B, bidirectional attention, int4)
                      └── audio_heads_decoder
 ```
 
-Voice cloning adds the Higgs encoders (`acoustic`, `semantic`, `quantizer`) to encode a
-reference clip into prefix codes for the loop.
+The loop uses **classifier-free guidance** (cond + uncond), a shifted-timestep schedule, a
+per-codebook layer penalty and Gumbel position sampling — ported from the reference. Voice cloning
+adds the Higgs encoders (`acoustic`, `semantic`, `quantizer`) to encode a reference clip into
+prefix codes for the loop.
+
+## Results
+
+Round-trip Whisper WER and speech-band energy for *"The quick brown fox jumps over the lazy dog."*,
+measured across the precision ladder in Python and in the browser (`tools/evaluate.py`):
+
+| variant | size | runtime | WER |
+|---|---|---|---|
+| PyTorch reference | — | CUDA | 0.00 |
+| fp32 bidirectional | 1.77 GB | CUDA | 0.00 |
+| fp16 bidirectional | 885 MB | CUDA | 0.00 |
+| **int4 bidirectional** | **280 MB** | **WebGPU (browser)** | **0.00** |
+
+The browser default is the **int4** backbone (MatMulNBits, f32 activations, no `shader-f16`
+required) — 6.3× smaller than fp32 at identical task quality. The critical fix was re-exporting the
+LLM with a full bidirectional attention mask (`tools/export_llm.py`); the public causal export
+produced non-speech even with the correct algorithm.
 
 ## Development
 
@@ -54,9 +74,9 @@ The ONNX Runtime WebAssembly files are copied into `public/ort/` by `scripts/cop
 
 The site is a responsive SPA with safe-area insets and 16px inputs (no iOS focus zoom), so it
 works on phones and tablets. The real constraint on mobile is **RAM**, not the UI: the Lite
-profile is ~423 MB and Full is ~735 MB. Lite is recommended on phones; Full voice cloning may be
-unstable on low-memory devices. The app detects device memory, GPU buffer limits and
-`navigator.gpu` availability and warns accordingly.
+profile is ~470 MB and Full (which adds the cloning encoders) is ~1.12 GB. Lite is recommended on
+phones; Full voice cloning may be unstable on low-memory devices. The app detects device memory,
+GPU buffer limits and `navigator.gpu` availability and warns accordingly.
 
 ## Deployment
 
