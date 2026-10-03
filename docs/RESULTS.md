@@ -232,6 +232,26 @@ normal-length input. Two open items match prior art: **short auto-voice** ("Hell
 to non-speech, and **cloning from a synthetic (model-generated) reference** leaks reference words
 (needs a clean human reference and reference-exact encode alignment).
 
+## Voice cloning fixed: the conditional audio mask must cover the reference frames
+
+Cloning produced noise because our conditional `audio_mask` marked only the **target** frames as
+audio; the reference implementation also marks the **reference-audio** frames
+(`cond_audio_start_idx = cond_total_len − target − ref_len`). With the wrong mask the reference
+codes were treated as *text* embeddings. Fix in both `tools/generate_cfg.py` and `engine/prompt.ts`
+(`condMask` from `genStart − refFrames`).
+
+Reference clip: a 23.9 s clean multilingual sample (`tools/refs/VVV.wav`), auto-transcribed for the
+reference text. Target: a ~130-word educational paragraph.
+
+| run | dur | speech-band | ASR round-trip | WER |
+|---|---|---|---|---|
+| short clone ("Hello there, this is a short cloned voice test.") | 3.60 s | 85.0% | exact | **0.00** |
+| long clone (educational paragraph) | 67.0 s | 87.4% | intelligible; garbles proper nouns (`Qwen3`, `codec`, `WebGPU`) | 0.53 |
+
+The long-form WER is dominated by domain words that both Whisper and the TTS mishandle — the
+sentence content is otherwise correct. This is the expected failure mode for rare tokens, not a
+runtime bug.
+
 ## Export defects found
 
 - `audio_tokenizer/fp16/semantic_encoder.onnx` is **malformed**: a `LayerNormalization` node is

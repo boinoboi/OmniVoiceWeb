@@ -74,8 +74,9 @@ def build_prompt(tok, text, lang=None, instruct=None, ref_text=None, ref_codes=N
     target_ids = np.full((C, target), MASK_ID, dtype=np.int64)
     cond = np.concatenate([cond, target_ids], axis=1)
     gen_start = cond.shape[1] - target
+    audio_start = gen_start - (ref_codes.shape[1] if ref_codes is not None else 0)
     cond_mask = np.zeros(cond.shape[1], dtype=bool)
-    cond_mask[gen_start:] = True
+    cond_mask[audio_start:] = True
 
     uncond = target_ids.copy()
     uncond_mask = np.ones(target, dtype=bool)

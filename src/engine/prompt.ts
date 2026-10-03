@@ -73,7 +73,7 @@ export async function prepareInputs(
     }
     for (let t = 0; t < target; t++) condIds[row + genStart + t] = AUDIO_MASK_ID
   }
-  for (let t = genStart; t < condSeq; t++) condMask[t] = 1
+  for (let t = genStart - refFrames; t < condSeq; t++) condMask[t] = 1
 
   const uncondIds = new Int32Array(NUM_CODEBOOKS * target)
   const uncondMask = new Uint8Array(target)
