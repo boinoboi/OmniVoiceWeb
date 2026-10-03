@@ -252,6 +252,23 @@ The long-form WER is dominated by domain words that both Whisper and the TTS mis
 sentence content is otherwise correct. This is the expected failure mode for rare tokens, not a
 runtime bug.
 
+## Browser voice cloning
+
+Two paths, both validated in the browser on the real GPU:
+
+| path | mechanism | can_seconds | ASR (target "…short cloned voice test.") | WER |
+|---|---|---|---|---|
+| precomputed voice | `tools/precompute_voices.py` → `public/voices.json`, loaded instantly | 2.76 s | "…a short clone voice test." | 0.11 |
+| in-browser encode | `engine/cloning.ts` on an uploaded clip | — | — | — |
+
+- **Precomputed voices are the practical path** (prior art): codes are computed offline once and
+  shipped, so the browser needs no Higgs encoders and cloning is instant.
+- **In-browser encode of a fresh upload works but is slow** with ORT-web WebGPU — the 654 MB Higgs
+  encoders took >4 min for an 8 s clip in our tests (many ops fall back off the GPU). It stays as a
+  fallback for custom voices; live encode needs optimization (or int8 encoders) to be pleasant.
+- Uploaded references are decoded entirely client-side (WebAudio + `OfflineAudioContext`), so any
+  format (WAV/MP3/OGG/Opus/M4A/FLAC) works and nothing is uploaded.
+
 ## Export defects found
 
 - `audio_tokenizer/fp16/semantic_encoder.onnx` is **malformed**: a `LayerNormalization` node is
