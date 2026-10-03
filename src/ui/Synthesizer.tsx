@@ -31,6 +31,7 @@ export function Synthesizer({ device }: { device: Device }) {
   const { view, generate, encodeReference, reference, clearReference } = useSynthesizer(device)
   const [refText, setRefText] = useState('')
   const [refStatus, setRefStatus] = useState<string | null>(null)
+  const [consented, setConsented] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const busy = view.phase === 'loading' || view.phase === 'generating'
 
@@ -125,11 +126,19 @@ export function Synthesizer({ device }: { device: Device }) {
           disabled={busy}
           onChange={(e) => setRefText(e.target.value)}
         />
+        <label className="consent">
+          <input
+            type="checkbox"
+            checked={consented}
+            onChange={(e) => setConsented(e.target.checked)}
+          />
+          <span>I have the speaker's consent to clone this voice.</span>
+        </label>
         <div className="actions">
           <button
             className="btn ghost"
             type="button"
-            disabled={busy}
+            disabled={busy || !consented}
             onClick={() => fileRef.current?.click()}
           >
             Choose reference clip
