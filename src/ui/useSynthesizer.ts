@@ -68,9 +68,34 @@ export function useSynthesizer(device: Device) {
   const urlRef = useRef<string | null>(null)
   const chunksRef = useRef<Float32Array[]>([])
   const startedRef = useRef(0)
+  const watchdogRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const referenceRef = useRef<VoiceReference | null>(null)
   const [reference, setReferenceState] = useState<VoiceReference | null>(null)
   const [view, setView] = useState<SynthView>(initial)
+
+  const armWatchdog = useCallback(() => {
+    if (watchdogRef.current) clearTimeout(watchdogRef.current)
+    watchdogRef.current = setTimeout(() => {
+      workerRef.current?.terminate()
+      workerRef.current = null
+      pendingRef.current?.reject(
+        new Error(
+          'Generation stalled. This device exposes no WebGPU adapter, and the CPU fallback cannot run the diffusion loop in reasonable time. Use Chrome or Edge (desktop/Android) or Safari 18+ (iOS), which provide WebGPU.',
+        ),
+      )
+      setView((v) => ({
+        ...v,
+        phase: 'error',
+        error:
+          'Generation stalled on the CPU fallback. WebGPU is required for on-device generation — try Chrome/Edge or Safari 18+.',
+      }))
+    }, 120_000)
+  }, [])
+
+  const clearWatchdog = useCallback(() => {
+    if (watchdogRef.current) clearTimeout(watchdogRef.current)
+    watchdogRef.current = undefined
+  }, [])
 
   const publish = useCallback((parts: Float32Array[], sampleRate: number): string => {
     const wav = encodeWav(concatFloat32(parts), sampleRate)
@@ -93,6 +118,7 @@ export function useSynthesizer(device: Device) {
       worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
         const message = event.data
         if (message.type === 'progress' && message.progress) {
+          armWatchdog()
           setView((v) => ({
             ...v,
             stage: message.progress!.stage,
@@ -100,6 +126,7 @@ export function useSynthesizer(device: Device) {
             detail: message.progress!.detail ?? '',
           }))
         } else if (message.type === 'chunk') {
+          armWatchdog()
           if (message.samples) chunksRef.current.push(message.samples)
           const url = publish(chunksRef.current, message.sampleRate ?? 24000)
           setView((v) => ({
@@ -118,15 +145,17 @@ export function useSynthesizer(device: Device) {
         } else if (message.type === 'loaded') {
           pendingRef.current?.resolve('loaded')
         } else if (message.type === 'result' || message.type === 'encoded') {
+          clearWatchdog()
           pendingRef.current?.resolve(message)
         } else if (message.type === 'error') {
+          clearWatchdog()
           pendingRef.current?.reject(new Error(message.message ?? 'Worker error'))
         }
       }
       workerRef.current = worker
     }
     return workerRef.current
-  }, [publish])
+  }, [publish, armWatchdog, clearWatchdog])
 
   const send = useCallback(
     (message: unknown): Promise<WorkerMessage | 'loaded'> => {
@@ -144,6 +173,7 @@ export function useSynthesizer(device: Device) {
       if (!text.trim()) return
       chunksRef.current = []
       startedRef.current = performance.now()
+      armWatchdog()
       setView((v) => ({
         ...v,
         phase: 'loading',
@@ -184,6 +214,7 @@ export function useSynthesizer(device: Device) {
           rtf: metrics.durationMs > 0 ? milliseconds / metrics.durationMs : null,
         }))
       } catch (error) {
+        clearWatchdog()
         setView((v) => ({
           ...v,
           phase: 'error',
@@ -191,11 +222,12 @@ export function useSynthesizer(device: Device) {
         }))
       }
     },
-    [device, send, publish],
+    [device, send, publish, armWatchdog, clearWatchdog],
   )
 
   const encodeReference = useCallback(
     async (samples: Float32Array, name?: string, text?: string): Promise<VoiceReference> => {
+      armWatchdog()
       setView((v) => ({
         ...v,
         phase: 'loading',
@@ -216,9 +248,11 @@ export function useSynthesizer(device: Device) {
         }
         referenceRef.current = ref
         setReferenceState(ref)
+        clearWatchdog()
         setView((v) => ({ ...v, phase: 'ready', stage: '', ratio: 1, detail: '' }))
         return ref
       } catch (error) {
+        clearWatchdog()
         setView((v) => ({
           ...v,
           phase: 'error',
@@ -227,7 +261,7 @@ export function useSynthesizer(device: Device) {
         throw error
       }
     },
-    [device, send],
+    [device, send, armWatchdog, clearWatchdog],
   )
 
   const setReference = useCallback((ref: VoiceReference) => {
@@ -242,10 +276,11 @@ export function useSynthesizer(device: Device) {
 
   useEffect(() => {
     return () => {
+      clearWatchdog()
       workerRef.current?.terminate()
       if (urlRef.current) URL.revokeObjectURL(urlRef.current)
     }
-  }, [])
+  }, [clearWatchdog])
 
   return { view, generate, encodeReference, setReference, reference, clearReference }
 }

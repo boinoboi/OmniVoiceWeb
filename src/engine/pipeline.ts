@@ -6,7 +6,7 @@ import { encodeReference, type EncoderSet, type ReferenceCodes } from './cloning
 import { estimateTargetTokens } from './duration'
 import { toFloat32 } from './dtype'
 import { filesForDevice, filesForProfile, type Profile } from './manifest'
-import { createCachedSession, ort, releaseSession, type Device, type SessionHandle } from './ort'
+import { createCachedSession, releaseSession, type Device, type SessionHandle } from './ort'
 import { prepareInputs } from './prompt'
 import { chunkText } from './streaming'
 
@@ -158,7 +158,7 @@ export class Synthesizer {
       refCodes: options.refCodes,
     })
 
-    const step = createBackboneStep(ort, this.embeddings, this.llm, this.heads, {
+    const step = createBackboneStep(this.embeddings.ort, this.embeddings, this.llm, this.heads, {
       llmFloat16: PATHS.llm.includes('fp16'),
     })
     onProgress?.({ stage: 'generate', ratio: 0 })
@@ -177,7 +177,7 @@ export class Synthesizer {
     )
 
     onProgress?.({ stage: 'decode', ratio: 0 })
-    const codesTensor = new ort.Tensor('int64', toBigInt64(codes), [8, 1, frames])
+    const codesTensor = new this.embeddings.ort.Tensor('int64', toBigInt64(codes), [8, 1, frames])
     const output = await this.decoder.session.run({ codes: codesTensor })
     const samples = toFloat32(output.waveform_24k)
 

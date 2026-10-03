@@ -1,6 +1,6 @@
 import { fileByPath } from './manifest'
 import { ensureCached } from './cache'
-import { createCachedSession, ort, releaseSession, type Device } from './ort'
+import { createCachedSession, releaseSession, type Device } from './ort'
 
 export interface ProbeResult {
   device: Device
@@ -29,7 +29,7 @@ export async function runHeadsProbe(
     const hidden = 1024
     const data = new Float32Array(seq * hidden)
     for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.1
-    const input = new ort.Tensor('float32', data, [1, seq, hidden])
+    const input = new handle.ort.Tensor('float32', data, [1, seq, hidden])
 
     onStatus?.('running forward pass…')
     const start = performance.now()

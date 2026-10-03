@@ -1,29 +1,37 @@
-import * as ort from 'onnxruntime-web/webgpu'
+import * as ortWebgpu from 'onnxruntime-web/webgpu'
 import { getModelBlob } from './cache'
 
 export type Device = 'webgpu' | 'wasm'
+export type OrtModule = typeof ortWebgpu
 
-let configured = false
+const configured = new WeakSet<object>()
+let wasmModule: OrtModule | undefined
 
-export function configureOrt(): void {
-  if (configured) return
-  const base = import.meta.env.BASE_URL
-  ort.env.wasm.wasmPaths = `${base}ort/`
+export async function moduleFor(device: Device): Promise<OrtModule> {
+  if (device === 'webgpu') return ortWebgpu
+  if (!wasmModule) wasmModule = (await import('onnxruntime-web/wasm')) as unknown as OrtModule
+  return wasmModule
+}
+
+export function configureOrt(module: OrtModule): void {
+  if (configured.has(module)) return
+  module.env.wasm.wasmPaths = `${import.meta.env.BASE_URL}ort/`
   const isolated = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated
-  ort.env.wasm.numThreads = isolated
+  module.env.wasm.numThreads = isolated
     ? Math.min(4, Math.max(1, navigator.hardwareConcurrency || 1))
     : 1
-  ort.env.wasm.simd = true
-  ort.env.logLevel = 'warning'
-  configured = true
+  module.env.wasm.simd = true
+  module.env.logLevel = 'warning'
+  configured.add(module)
 }
 
 export interface SessionHandle {
-  session: ort.InferenceSession
+  session: ortWebgpu.InferenceSession
   device: Device
   inputNames: string[]
   outputNames: string[]
   modelBytes: number
+  ort: OrtModule
 }
 
 async function loadModel(modelPath: string): Promise<{ model: ArrayBuffer; bytes: number }> {
@@ -36,10 +44,11 @@ export async function createCachedSession(
   onnxPath: string,
   device: Device,
 ): Promise<SessionHandle> {
-  configureOrt()
+  const module = await moduleFor(device)
+  configureOrt(module)
 
   const { model, bytes } = await loadModel(onnxPath)
-  const options: ort.InferenceSession.SessionOptions = {
+  const options: ortWebgpu.InferenceSession.SessionOptions = {
     executionProviders: device === 'webgpu' ? ['webgpu'] : ['wasm'],
     graphOptimizationLevel: 'all',
   }
@@ -52,13 +61,14 @@ export async function createCachedSession(
     ]
   }
 
-  const session = await ort.InferenceSession.create(model, options)
+  const session = await module.InferenceSession.create(model, options)
   return {
     session,
     device,
     inputNames: [...session.inputNames],
     outputNames: [...session.outputNames],
     modelBytes: bytes,
+    ort: module,
   }
 }
 
@@ -70,5 +80,3 @@ export async function releaseSession(handle: SessionHandle | null): Promise<void
     void 0
   }
 }
-
-export { ort }

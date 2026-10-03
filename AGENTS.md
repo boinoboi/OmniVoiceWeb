@@ -135,8 +135,12 @@ tools/.venv/bin/python tools/quantize_llm.py     # NOTE: ORT 1.30 int4 config is
 ASR/WER check: faster-whisper `WhisperModel('base', cpu, int8)`; resample to 16k; `vad_filter=False`.
 
 ### Known gotchas (paid for)
-- fp16 & int4 are **WebGPU-only**; ORT WASM lacks `GatherBlockQuantized` (int4 embeddings) and
-  fp16 kernels → **the WASM fallback does not run the current backbone. WebGPU is required.**
+- **WebGPU is required for usable generation.** The `onnxruntime-web/webgpu` bundle's WASM build
+  lacks `GatherBlockQuantized` → the int4 embeddings crash on CPU (Samsung). Fix: WASM devices load
+  the **fp32 embeddings** (`audio_embeddings_encoder.onnx`, 327 MB) and `ort.ts` swaps in the
+  **plain `onnxruntime-web/wasm`** module (which *does* have the op). But even then the CPU
+  diffusion loop does not progress in the browser (>5 min, no step) → `useSynthesizer` has a 120 s
+  watchdog that aborts with "use a WebGPU browser". fp16 still needs `shader-f16`.
 - `audio_tokenizer/fp16/semantic_encoder.onnx` from onnx-community is malformed; use fp32.
 - SwiftShader WebGPU e2e is ~45 min (too slow to iterate). Use real-GPU headless
   (`--enable-unsafe-webgpu --enable-features=Vulkan --use-angle=vulkan`) or a short target.

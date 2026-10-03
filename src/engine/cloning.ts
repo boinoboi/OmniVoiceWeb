@@ -1,6 +1,6 @@
 import { resample } from './audio'
 import { toFloat32, toInt32 } from './dtype'
-import { ort, type SessionHandle } from './ort'
+import type { SessionHandle } from './ort'
 
 export const HOP_LENGTH = 960
 export const MIN_REF_RMS = 0.1
@@ -75,11 +75,12 @@ export async function encodeReference(
   const waveform24k = trimToHop(trimEdgeSilence(normalized))
   const waveform16k = resample(waveform24k, 24000, 16000)
 
+  const module = encoders.acoustic.ort
   const acoustic = await encoders.acoustic.session.run({
-    waveform_24k: new ort.Tensor('float32', waveform24k, [1, 1, waveform24k.length]),
+    waveform_24k: new module.Tensor('float32', waveform24k, [1, 1, waveform24k.length]),
   })
   const semantic = await encoders.semantic.session.run({
-    waveform_16k: new ort.Tensor('float32', waveform16k, [1, waveform16k.length]),
+    waveform_16k: new module.Tensor('float32', waveform16k, [1, waveform16k.length]),
   })
 
   const acousticTensor = acoustic.acoustic_features
@@ -89,8 +90,8 @@ export async function encodeReference(
   const semanticData = sliceFeatureFrames(toFloat32(semanticTensor), semanticTensor.dims, frames)
 
   const quantized = await encoders.quantizer.session.run({
-    acoustic_features: new ort.Tensor('float32', acousticData, [1, acousticTensor.dims[1], frames]),
-    semantic_features: new ort.Tensor('float32', semanticData, [1, semanticTensor.dims[1], frames]),
+    acoustic_features: new module.Tensor('float32', acousticData, [1, acousticTensor.dims[1], frames]),
+    semantic_features: new module.Tensor('float32', semanticData, [1, semanticTensor.dims[1], frames]),
   })
 
   const codes = quantized.codes
